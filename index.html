@@ -112,7 +112,7 @@
     <div class="container mx-auto p-4 lg:p-6">
         <header class="text-center mb-8">
             <h1 class="text-4xl font-bold text-white mb-2 tracking-tight">Markdown PDF 에디터 Pro</h1>
-            <p class="text-gray-400 text-sm">로컬 이미지 업로드 및 파일별 저장 관리 (V4.2)</p>
+            <p class="text-gray-400 text-sm">실시간 동기화 및 렌더링 오류 수정 버전 (V4.4)</p>
         </header>
 
         <!-- 메인 툴바 -->
@@ -181,7 +181,6 @@
                     <button onclick="handleTableAction('addRow', fullEditArea)" class="btn-tool" title="행 추가 (Shift+Alt+Down)">Row+</button>
                     <button onclick="handleTableAction('addCol', fullEditArea)" class="btn-tool" title="열 추가">Col+</button>
                     <div class="h-5 w-[1px] bg-gray-600 mx-1"></div>
-                    <!-- 요청하신 일반 URL 링크 삽입 버튼 (IMG URL 앞쪽에 배치) -->
                     <button onclick="showLinkPrompt(fullEditArea, 'link')" class="btn-tool" title="텍스트 링크 삽입">URL Link</button>
                     <button onclick="showLinkPrompt(fullEditArea, 'url')" class="btn-tool" title="웹 이미지 URL로 삽입">IMG URL</button>
                     <button onclick="showLinkPrompt(fullEditArea, 'upload')" class="btn-tool bg-blue-900" title="파일 업로드로 삽입 (추천)">IMG UPLOAD</button>
@@ -212,7 +211,7 @@
                 <input type="file" id="image-upload-input" class="w-full text-xs text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer" accept="image/*">
                 <p class="text-[10px] text-gray-500 mt-2">*업로드된 이미지는 Base64로 저장되어 PDF 변환 시 누락되지 않습니다.</p>
             </div>
-            <!-- 공통 옵션 (체크박스 및 이미지 크기) -->
+            <!-- 체크박스 및 이미지 크기 옵션 -->
             <div id="link-options" class="flex items-center gap-2 bg-gray-800 p-2 rounded">
                 <input type="checkbox" id="link-target-check" class="w-4 h-4 rounded border-gray-700 text-blue-600 bg-gray-900">
                 <label for="link-target-check" class="text-xs text-gray-300">새 창에서 열기 (_blank)</label>
@@ -309,14 +308,35 @@
         };
 
         const renderer = new marked.Renderer();
-        // 링크 렌더러 커스텀: target=_blank 파라미터가 있으면 새 창 열기 속성 부여
-        renderer.link = (href, title, text) => {
-            let targetAttr = href && href.includes('target=_blank') ? ' target="_blank" rel="noopener noreferrer"' : '';
-            if (href) href = href.replace(/[\?&]target=_blank/, '');
-            return `<a href="${href}" title="${title || ''}"${targetAttr}>${text}</a>`;
+        
+        // 데이터 추출 유틸리티 (marked.js 버전 호환성 대응)
+        const extractData = (arg1, arg2, arg3) => {
+            if (typeof arg1 === 'object' && arg1 !== null && !Array.isArray(arg1)) {
+                return { href: arg1.href, title: arg1.title, text: arg1.text };
+            }
+            return { href: arg1, title: arg2, text: arg3 };
         };
-        renderer.image = (href, title, text) => {
-            return `<img src="${href}" title="${title || ''}" alt="${text || ''}" onerror="this.classList.add('load-error'); this.src='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'; this.onerror=null;">`;
+
+        // 링크 렌더러 수정: 'undefined' 버그 수정 및 새 창 속성 강화
+        renderer.link = (arg1, arg2, arg3) => {
+            const data = extractData(arg1, arg2, arg3);
+            const safeHref = data.href || '';
+            const isString = typeof safeHref === 'string';
+            
+            // target=_blank 파라미터 감지 시 새 창 속성 부여
+            let targetAttr = (isString && safeHref.includes('target=_blank')) ? ' target="_blank" rel="noopener noreferrer"' : '';
+            let cleanHref = isString ? safeHref.replace(/[\?&]target=_blank/, '') : '#';
+            
+            // 텍스트가 비어있으면 주소를 텍스트로 사용
+            const displayText = data.text || cleanHref;
+            
+            return `<a href="${cleanHref}" title="${data.title || ''}"${targetAttr}>${displayText}</a>`;
+        };
+
+        // 이미지 렌더러 수정
+        renderer.image = (arg1, arg2, arg3) => {
+            const data = extractData(arg1, arg2, arg3);
+            return `<img src="${data.href}" title="${data.title || ''}" alt="${data.text || ''}" onerror="this.classList.add('load-error'); this.src='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'; this.onerror=null;">`;
         };
 
         marked.setOptions({ 
@@ -338,17 +358,19 @@
             renderMath(htmlOutput); 
         };
 
+        // 실시간 미리보기 업데이트
         const updateLivePreviewWindow = () => {
-            if (!livePreviewWindow) return;
+            if (!livePreviewWindow || livePreviewWindow.closed) return;
             try {
-                if (livePreviewWindow.closed) { livePreviewWindow = null; return; }
                 const container = livePreviewWindow.document.getElementById('live-container');
                 if (container) {
                     container.innerHTML = marked.parse(preProcess(fullEditArea.value));
                     container.style.fontSize = htmlOutput.style.fontSize || "18px";
                     renderMath(container);
                 }
-            } catch (e) {}
+            } catch (e) {
+                console.error("Live sync error:", e);
+            }
         };
 
         // --- 스크롤 동기화 ---
@@ -358,7 +380,18 @@
             outputContainer.scrollTop = percentage * (outputContainer.scrollHeight - outputContainer.clientHeight);
         });
 
-        // --- 표 조작 로직 ---
+        // 전체 화면 편집 모드에서의 스크롤 동기화 로직 보강
+        fullEditArea.addEventListener('scroll', () => {
+            if (!livePreviewWindow || livePreviewWindow.closed) return;
+            const percentage = fullEditArea.scrollTop / (fullEditArea.scrollHeight - fullEditArea.clientHeight);
+            const previewDoc = livePreviewWindow.document.documentElement;
+            livePreviewWindow.scrollTo({
+                top: percentage * (previewDoc.scrollHeight - livePreviewWindow.innerHeight),
+                behavior: 'auto'
+            });
+        });
+
+        // --- 표 편집 로직 ---
         function handleTableAction(action, area) {
             const text = area.value, lines = text.split('\n');
             const cursorPos = area.selectionStart;
@@ -410,15 +443,17 @@
                     }
                 }
             });
-            area.addEventListener('input', () => saveHistory(area));
+            area.addEventListener('input', () => {
+                saveHistory(area);
+                if (area === fullEditArea) updateLivePreviewWindow();
+            });
         };
         setupShortcuts(markdownInput); setupShortcuts(fullEditArea);
 
         // --- 이미지/링크 모달 제어 ---
         function showLinkPrompt(targetArea, mode) {
             currentTargetArea = targetArea;
-            currentPromptMode = mode; // 'link', 'url', 'upload'
-            
+            currentPromptMode = mode;
             const selected = targetArea.value.substring(targetArea.selectionStart, targetArea.selectionEnd);
             document.getElementById('link-text-input').value = selected;
             document.getElementById('link-url-input').value = "";
@@ -429,7 +464,7 @@
                 promptUrlSection.classList.remove('hidden');
                 promptUploadSection.classList.add('hidden');
                 imgOptions.classList.add('hidden');
-                linkOptions.classList.remove('hidden'); // 체크박스 활성화
+                linkOptions.classList.remove('hidden');
             } else if (mode === 'url') {
                 promptTitle.innerText = "웹 이미지 URL 삽입";
                 promptUrlSection.classList.remove('hidden');
@@ -443,7 +478,6 @@
                 imgOptions.classList.remove('hidden');
                 linkOptions.classList.add('hidden');
             }
-            
             customPrompt.style.display = 'flex';
         }
 
@@ -476,7 +510,9 @@
             }
 
             currentTargetArea.value = currentTargetArea.value.substring(0, start) + tag + currentTargetArea.value.substring(end);
-            saveHistory(currentTargetArea); updatePreview(); updateLivePreviewWindow(); hideLinkPrompt(); currentTargetArea.focus();
+            saveHistory(currentTargetArea); 
+            if (currentTargetArea === fullEditArea) updateLivePreviewWindow(); else updatePreview();
+            hideLinkPrompt(); currentTargetArea.focus();
         });
 
         const toBase64 = file => new Promise((resolve, reject) => {
@@ -486,7 +522,7 @@
             reader.onerror = error => reject(error);
         });
 
-        // --- 전체 화면 편집 ---
+        // --- 전체 화면 편집 시작 ---
         document.getElementById('open-full-edit').addEventListener('click', () => {
             fullEditArea.value = markdownInput.value; saveHistory(fullEditArea);
             fullEditModal.style.display = 'block'; document.body.style.overflow = 'hidden';
@@ -503,7 +539,7 @@
                     <script src="https://cdn.tailwindcss.com?plugins=typography"><\/script>
                     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
                     <style>
-                        body { background: #334155; padding: 40px; display: flex; flex-direction: column; align-items: center; font-family: sans-serif; }
+                        body { background: #334155; padding: 40px; display: flex; flex-direction: column; align-items: center; font-family: sans-serif; scroll-behavior: smooth; }
                         .a4 { background: white; width: 210mm; min-height: 297mm; padding: 25mm; box-shadow: 0 10px 40px rgba(0,0,0,0.5); margin-bottom: 20px;}
                         .prose { font-size: ${currentFontSize} !important; }
                         b { font-weight: 800; }
@@ -513,6 +549,8 @@
                         .align-left { text-align: left; } .align-center { text-align: center; } .align-right { text-align: right; }
                         img { max-width: 100%; border-radius: 4px; } .align-center img { margin: 0 auto; display: block;}
                         table { width: 100%; border-collapse: collapse; border: 1px solid #ddd; } th, td { border: 1px solid #ddd; padding: 8px; }
+                        .load-error { border: 2px dashed #ef4444; padding: 20px; background: #fee2e2; color: #b91c1c; font-size: 11px; display: block; text-align: center; width: 100%; }
+                        a { color: #2563eb; text-decoration: underline; }
                     </style>
                     </head><body><div id="live-container" class="a4 prose prose-lg max-w-none">${marked.parse(preProcess(fullEditArea.value))}</div></body></html>
                 `);
@@ -522,6 +560,7 @@
         }
 
         fullEditArea.addEventListener('input', updateLivePreviewWindow);
+
         document.getElementById('refresh-preview-btn').addEventListener('click', openLivePreview);
         document.getElementById('apply-full-edit').addEventListener('click', () => {
             markdownInput.value = fullEditArea.value; saveHistory(markdownInput); updatePreview();
@@ -560,11 +599,12 @@
                     break;
             }
             targetArea.value = targetArea.value.substring(0, start) + tagText + targetArea.value.substring(end);
-            saveHistory(targetArea); if (targetArea === markdownInput) updatePreview(); else updateLivePreviewWindow();
+            saveHistory(targetArea); 
+            if (targetArea === fullEditArea) updateLivePreviewWindow(); else updatePreview();
             targetArea.focus(); const newPos = start + tagText.length; targetArea.setSelectionRange(newPos, newPos);
         }
 
-        // --- 파일 저장 ---
+        // --- 파일 저장 및 기타 유틸리티 ---
         document.getElementById('pdf-save-btn').addEventListener('click', () => {
             pdfPreviewContent.innerHTML = marked.parse(preProcess(markdownInput.value));
             renderMath(pdfPreviewContent);
@@ -629,7 +669,8 @@
         });
 
         // Initialize with Full Guide
-        markdownInput.value = `# Markdown PDF 에디터 Pro (V4.2)
+        # markdownInput.value = `# Markdown PDF 에디터 Pro (V4.4)
+제작: 박중희 (연세대학교 심리학과 겸임교수)   
 
 ### 🖼️ 이미지 삽입 및 보안 정책 안내
 특정 온라인 이미지 주소는 서버 보안 정책(CORS)으로 인해 브라우저 미리보기는 가능해도 **PDF 저장 시 누락**될 수 있습니다.
