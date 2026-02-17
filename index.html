@@ -181,7 +181,7 @@
                     <button onclick="handleTableAction('addRow', fullEditArea)" class="btn-tool" title="행 추가 (Shift+Alt+Down)">Row+</button>
                     <button onclick="handleTableAction('addCol', fullEditArea)" class="btn-tool" title="열 추가">Col+</button>
                     <div class="h-5 w-[1px] bg-gray-600 mx-1"></div>
-                    <!-- 요청하신 URL 링크 삽입 버튼 추가 -->
+                    <!-- 요청하신 일반 URL 링크 삽입 버튼 (IMG URL 앞쪽에 배치) -->
                     <button onclick="showLinkPrompt(fullEditArea, 'link')" class="btn-tool" title="텍스트 링크 삽입">URL Link</button>
                     <button onclick="showLinkPrompt(fullEditArea, 'url')" class="btn-tool" title="웹 이미지 URL로 삽입">IMG URL</button>
                     <button onclick="showLinkPrompt(fullEditArea, 'upload')" class="btn-tool bg-blue-900" title="파일 업로드로 삽입 (추천)">IMG UPLOAD</button>
@@ -211,6 +211,11 @@
                 <label class="text-xs text-gray-400 block mb-1 font-medium">이미지 파일 선택</label>
                 <input type="file" id="image-upload-input" class="w-full text-xs text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer" accept="image/*">
                 <p class="text-[10px] text-gray-500 mt-2">*업로드된 이미지는 Base64로 저장되어 PDF 변환 시 누락되지 않습니다.</p>
+            </div>
+            <!-- 공통 옵션 (체크박스 및 이미지 크기) -->
+            <div id="link-options" class="flex items-center gap-2 bg-gray-800 p-2 rounded">
+                <input type="checkbox" id="link-target-check" class="w-4 h-4 rounded border-gray-700 text-blue-600 bg-gray-900">
+                <label for="link-target-check" class="text-xs text-gray-300">새 창에서 열기 (_blank)</label>
             </div>
             <div id="img-options" class="hidden flex flex-col gap-3 bg-gray-800 p-3 rounded">
                 <div class="flex gap-3">
@@ -265,6 +270,7 @@
         const promptUploadSection = document.getElementById('prompt-upload-section');
         const imageUploadInput = document.getElementById('image-upload-input');
         const imgOptions = document.getElementById('img-options');
+        const linkOptions = document.getElementById('link-options');
 
         let livePreviewWindow = null;
         let currentTargetArea = null;
@@ -303,6 +309,12 @@
         };
 
         const renderer = new marked.Renderer();
+        // 링크 렌더러 커스텀: target=_blank 파라미터가 있으면 새 창 열기 속성 부여
+        renderer.link = (href, title, text) => {
+            let targetAttr = href && href.includes('target=_blank') ? ' target="_blank" rel="noopener noreferrer"' : '';
+            if (href) href = href.replace(/[\?&]target=_blank/, '');
+            return `<a href="${href}" title="${title || ''}"${targetAttr}>${text}</a>`;
+        };
         renderer.image = (href, title, text) => {
             return `<img src="${href}" title="${title || ''}" alt="${text || ''}" onerror="this.classList.add('load-error'); this.src='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'; this.onerror=null;">`;
         };
@@ -410,22 +422,26 @@
             const selected = targetArea.value.substring(targetArea.selectionStart, targetArea.selectionEnd);
             document.getElementById('link-text-input').value = selected;
             document.getElementById('link-url-input').value = "";
+            document.getElementById('link-target-check').checked = false;
             
             if (mode === 'link') {
                 promptTitle.innerText = "URL 링크 삽입";
                 promptUrlSection.classList.remove('hidden');
                 promptUploadSection.classList.add('hidden');
-                imgOptions.classList.add('hidden'); // 링크는 크기 옵션 불필요
+                imgOptions.classList.add('hidden');
+                linkOptions.classList.remove('hidden'); // 체크박스 활성화
             } else if (mode === 'url') {
                 promptTitle.innerText = "웹 이미지 URL 삽입";
                 promptUrlSection.classList.remove('hidden');
                 promptUploadSection.classList.add('hidden');
                 imgOptions.classList.remove('hidden');
+                linkOptions.classList.add('hidden');
             } else if (mode === 'upload') {
                 promptTitle.innerText = "로컬 이미지 업로드";
                 promptUrlSection.classList.add('hidden');
                 promptUploadSection.classList.remove('hidden');
                 imgOptions.classList.remove('hidden');
+                linkOptions.classList.add('hidden');
             }
             
             customPrompt.style.display = 'flex';
@@ -439,7 +455,10 @@
 
             if (currentPromptMode === 'link') {
                 const text = document.getElementById('link-text-input').value || "link";
-                const url = document.getElementById('link-url-input').value || "#";
+                let url = document.getElementById('link-url-input').value || "#";
+                if (document.getElementById('link-target-check').checked) {
+                    url += (url.includes('?') ? '&' : '?') + 'target=_blank';
+                }
                 tag = `[${text}](${url})`;
             } else if (currentPromptMode === 'url') {
                 const url = document.getElementById('link-url-input').value || "#";
