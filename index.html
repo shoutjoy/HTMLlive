@@ -112,7 +112,7 @@
     <div class="container mx-auto p-4 lg:p-6">
         <header class="text-center mb-8">
             <h1 class="text-4xl font-bold text-white mb-2 tracking-tight">Markdown PDF 에디터 Pro</h1>
-            <p class="text-gray-400 text-sm">로컬 이미지 업로드 및 파일별 저장 관리 (V4.1)</p>
+            <p class="text-gray-400 text-sm">로컬 이미지 업로드 및 파일별 저장 관리 (V4.2)</p>
         </header>
 
         <!-- 메인 툴바 -->
@@ -158,7 +158,7 @@
             <div class="toolbar">
                 <div class="flex items-center gap-2">
                     <button id="apply-full-edit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded text-xs font-bold transition shadow-md" title="저장하고 닫기 (Ctrl+S)">저장후닫기</button>
-                    <button id="close-full-edit" class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-1.5 rounded text-xs font-bold transition" title="취소하고 닫기 (ESC)">취소</button>
+                    <button id="close-full-edit" class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-1.5 rounded text-xs font-bold transition">취소</button>
                     <button id="refresh-preview-btn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1.5 rounded text-xs font-bold shadow-sm transition">미리보기 복구</button>
                 </div>
                 <div class="flex-grow"></div>
@@ -181,6 +181,8 @@
                     <button onclick="handleTableAction('addRow', fullEditArea)" class="btn-tool" title="행 추가 (Shift+Alt+Down)">Row+</button>
                     <button onclick="handleTableAction('addCol', fullEditArea)" class="btn-tool" title="열 추가">Col+</button>
                     <div class="h-5 w-[1px] bg-gray-600 mx-1"></div>
+                    <!-- 요청하신 URL 링크 삽입 버튼 추가 -->
+                    <button onclick="showLinkPrompt(fullEditArea, 'link')" class="btn-tool" title="텍스트 링크 삽입">URL Link</button>
                     <button onclick="showLinkPrompt(fullEditArea, 'url')" class="btn-tool" title="웹 이미지 URL로 삽입">IMG URL</button>
                     <button onclick="showLinkPrompt(fullEditArea, 'upload')" class="btn-tool bg-blue-900" title="파일 업로드로 삽입 (추천)">IMG UPLOAD</button>
                     <button onclick="insertTag('pagebreak', fullEditArea)" class="btn-tool bg-orange-700 text-white" title="페이지 나누기 (Ctrl+Enter)">Page</button>
@@ -229,7 +231,7 @@
         </div>
     </div>
 
-    <!-- PDF 저장 모달 -->
+    <!-- PDF 저장 미리보기 모달 -->
     <div id="pdf-modal">
         <div class="flex flex-col gap-4">
             <div class="flex justify-between items-center text-white">
@@ -302,7 +304,6 @@
 
         const renderer = new marked.Renderer();
         renderer.image = (href, title, text) => {
-            // 이미지 로드 에러 시 대체 뷰 표시 및 에러 무시
             return `<img src="${href}" title="${title || ''}" alt="${text || ''}" onerror="this.classList.add('load-error'); this.src='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'; this.onerror=null;">`;
         };
 
@@ -345,7 +346,7 @@
             outputContainer.scrollTop = percentage * (outputContainer.scrollHeight - outputContainer.clientHeight);
         });
 
-        // --- 표 편집 ---
+        // --- 표 조작 로직 ---
         function handleTableAction(action, area) {
             const text = area.value, lines = text.split('\n');
             const cursorPos = area.selectionStart;
@@ -383,7 +384,7 @@
             saveHistory(area); if (area === markdownInput) updatePreview(); else updateLivePreviewWindow();
         }
 
-        // --- 단축키 ---
+        // --- 단축키 설정 ---
         const setupShortcuts = (area) => {
             area.addEventListener('keydown', (e) => {
                 if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undoAction(area); return; }
@@ -401,15 +402,21 @@
         };
         setupShortcuts(markdownInput); setupShortcuts(fullEditArea);
 
-        // --- 이미지/링크 모달 ---
+        // --- 이미지/링크 모달 제어 ---
         function showLinkPrompt(targetArea, mode) {
             currentTargetArea = targetArea;
-            currentPromptMode = mode;
+            currentPromptMode = mode; // 'link', 'url', 'upload'
+            
             const selected = targetArea.value.substring(targetArea.selectionStart, targetArea.selectionEnd);
             document.getElementById('link-text-input').value = selected;
             document.getElementById('link-url-input').value = "";
             
-            if (mode === 'url') {
+            if (mode === 'link') {
+                promptTitle.innerText = "URL 링크 삽입";
+                promptUrlSection.classList.remove('hidden');
+                promptUploadSection.classList.add('hidden');
+                imgOptions.classList.add('hidden'); // 링크는 크기 옵션 불필요
+            } else if (mode === 'url') {
                 promptTitle.innerText = "웹 이미지 URL 삽입";
                 promptUrlSection.classList.remove('hidden');
                 promptUploadSection.classList.add('hidden');
@@ -420,6 +427,7 @@
                 promptUploadSection.classList.remove('hidden');
                 imgOptions.classList.remove('hidden');
             }
+            
             customPrompt.style.display = 'flex';
         }
 
@@ -427,18 +435,24 @@
 
         document.getElementById('link-confirm-btn').addEventListener('click', async () => {
             const start = currentTargetArea.selectionStart, end = currentTargetArea.selectionEnd;
-            const w = document.getElementById('img-width-input').value || "100%";
-            const h = document.getElementById('img-height-input').value || "auto";
             let tag = "";
 
-            if (currentPromptMode === 'url') {
+            if (currentPromptMode === 'link') {
+                const text = document.getElementById('link-text-input').value || "link";
+                const url = document.getElementById('link-url-input').value || "#";
+                tag = `[${text}](${url})`;
+            } else if (currentPromptMode === 'url') {
                 const url = document.getElementById('link-url-input').value || "#";
                 const alt = document.getElementById('link-text-input').value || "image";
-                tag = `<div class="align-center"><img src="${url}" alt="${alt}" style="width:${w}; height:${h};" onerror="this.classList.add('load-error'); this.onerror=null;"></div>`;
+                const w = document.getElementById('img-width-input').value || "100%";
+                const h = document.getElementById('img-height-input').value || "auto";
+                tag = `<div class="align-center"><img src="${url}" alt="${alt}" style="width:${w}; height:${h};"></div>`;
             } else if (currentPromptMode === 'upload') {
                 const file = imageUploadInput.files[0];
                 if (!file) { hideLinkPrompt(); return; }
                 const base64 = await toBase64(file);
+                const w = document.getElementById('img-width-input').value || "100%";
+                const h = document.getElementById('img-height-input').value || "auto";
                 tag = `<div class="align-center"><img src="${base64}" alt="uploaded image" style="width:${w}; height:${h};"></div>`;
             }
 
@@ -453,7 +467,7 @@
             reader.onerror = error => reject(error);
         });
 
-        // --- 미리보기 및 모달 ---
+        // --- 전체 화면 편집 ---
         document.getElementById('open-full-edit').addEventListener('click', () => {
             fullEditArea.value = markdownInput.value; saveHistory(fullEditArea);
             fullEditModal.style.display = 'block'; document.body.style.overflow = 'hidden';
@@ -480,7 +494,6 @@
                         .align-left { text-align: left; } .align-center { text-align: center; } .align-right { text-align: right; }
                         img { max-width: 100%; border-radius: 4px; } .align-center img { margin: 0 auto; display: block;}
                         table { width: 100%; border-collapse: collapse; border: 1px solid #ddd; } th, td { border: 1px solid #ddd; padding: 8px; }
-                        .load-error { border: 2px dashed #ef4444; padding: 20px; background: #fee2e2; color: #b91c1c; font-size: 11px; display: block; text-align: center; width: 100%; }
                     </style>
                     </head><body><div id="live-container" class="a4 prose prose-lg max-w-none">${marked.parse(preProcess(fullEditArea.value))}</div></body></html>
                 `);
@@ -597,7 +610,7 @@
         });
 
         // Initialize with Full Guide
-        markdownInput.value = `# Markdown PDF 에디터 Pro (V4.1)
+        markdownInput.value = `# Markdown PDF 에디터 Pro (V4.2)
 
 ### 🖼️ 이미지 삽입 및 보안 정책 안내
 특정 온라인 이미지 주소는 서버 보안 정책(CORS)으로 인해 브라우저 미리보기는 가능해도 **PDF 저장 시 누락**될 수 있습니다.
