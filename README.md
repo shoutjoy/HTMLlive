@@ -1,8 +1,8 @@
 # Markdown PDF Editor Pro (V4.1)
 
-강력한 실시간 A4 미리보기와 정밀한 PDF 내보내기 기능을 갖춘 웹 기반 마크다운 에디터
-html live](https://shoutjoy.github.io/HTMLlive/)
+강력한 실시간 A4 미리보기와 정밀한 PDF 내보내기 기능을 갖춘 웹 기반 마크다운 에디터  
 
+---[html live](https://shoutjoy.github.io/HTMLlive/?target=_blank)
 
 **제작자: 박중희 (연세대학교 심리학과 겸임교수)
 **
