@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Markdown PDF 에디터 Pro</title>
+    <title>Markdown PDF 에디터 Pro V5.68</title>
     
     <!-- CSS Dependencies -->
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
@@ -25,128 +25,233 @@
     <style>
         body { font-family: 'Inter', 'Noto Sans KR', sans-serif; overflow-x: hidden; }
 
-        /* 페이지 레이아웃 및 브레이크 가이드 */
-        .page-break { page-break-after: always; height: 0; margin: 0; border: none; }
+        /* 정렬 스타일 */
+        .align-left { text-align: left !important; display: block; width: 100%; }
+        .align-center { text-align: center !important; display: block; width: 100%; margin-left: auto; margin-right: auto; }
+        .align-right { text-align: right !important; display: block; width: 100%; }
         
+        .align-center img, .align-center p img { margin-left: auto; margin-right: auto; display: block; }
+        .align-right img, .align-right p img { margin-left: auto; margin-right: 0; display: block; }
+
+        /* 페이지 나누기 가이드 */
+        .page-break { page-break-after: always; height: 0; margin: 0; border: none; }
         .page-break-divider {
-            border-top: 2px dashed #3b82f6;
-            margin: 2.5rem 0;
+            height: 40px;
+            background-color: #cbd5e1;
+            margin: 0 -60px; 
             position: relative;
-            text-align: center;
-            height: 0;
+            border-top: 2px solid #94a3b8;
+            border-bottom: 2px solid #94a3b8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            clear: both;
+            pointer-events: none;
         }
         .page-break-divider::after {
-            content: "페이지 나누기 지점 (PDF Page Break)";
-            position: absolute;
-            top: -12px; left: 50%; transform: translateX(-50%);
-            background: white; padding: 0 12px; font-size: 11px; color: #3b82f6; font-weight: bold;
-            border: 1px solid #3b82f6; border-radius: 12px;
-            white-space: nowrap;
+            content: attr(data-page);
+            background: #3b82f6;
+            color: white;
+            padding: 4px 18px;
+            font-size: 12px;
+            font-weight: bold;
+            border-radius: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+        }
+
+        /* 메인 미리보기 영역 */
+        #right-pane { background-color: #94a3b8 !important; overflow: auto; display: block; }
+        #html-output-container { width: 100%; padding: 40px; display: flex; flex-direction: column; align-items: center; }
+        
+        /* 레이아웃 규격 고정: 최대 1000px 및 여백 40px 60px */
+        #html-output,
+        #full-preview-pane .prose {
+            background-color: white !important; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3); 
+            min-height: 297mm; 
+            width: 100%;
+            max-width: 1000px;
+            padding: 40px 60px !important;
+            box-sizing: border-box;
+            color: black;
+            word-break: keep-all;
+            overflow-wrap: break-word;
+            flex-shrink: 0;
         }
 
         /* 테이블 스타일 */
-        .prose table { width: 100%; border-collapse: collapse; margin: 1em 0; table-layout: auto; border: 1px solid #e5e7eb; }
-        .prose table th, .prose table td { border: 1px solid #e5e7eb; padding: 10px; color: black; word-break: break-word; }
-        .prose thead { border-bottom: 2px solid #d1d5db; }
-        .prose th { background-color: #f9fafb; font-weight: bold; text-align: center; }
-        .prose b, .prose strong { font-weight: 800 !important; color: inherit; }
+        .prose table { width: 100%; border-collapse: collapse; margin: 1em 0; border: 1px solid #e5e7eb; }
+        .prose table th, .prose table td { border: 1px solid #e5e7eb; padding: 12px; color: inherit; font-size: 1em; }
+        .prose th { background-color: rgba(0,0,0,0.05); font-weight: bold; }
 
-        /* 정렬 스타일 */
-        .align-left { text-align: left; }
-        .align-center { text-align: center; }
-        .align-right { text-align: right; }
-        .align-center img { margin-left: auto; margin-right: auto; display: block; }
-        .align-right img { margin-left: auto; display: block; }
-
-        /* 모달 스타일 */
-        #full-edit-modal {
+        /* 모달 및 UI */
+        .modal-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #0f172a; z-index: 1000; padding: 10px;
+            background: rgba(15, 23, 42, 0.85); z-index: 3000; padding: 20px;
+            backdrop-filter: blur(4px);
         }
-        #full-edit-container {
-            width: 100%; height: 100%; display: flex; flex-direction: column;
-            background: #1e293b; border-radius: 8px; overflow: hidden;
-        }
-        #full-edit-area {
-            flex: 1; width: 100%; padding: 30px; background: #0f172a; color: #f1f5f9;
-            font-family: 'JetBrains Mono', monospace; font-size: 16px; line-height: 1.7;
-            outline: none; resize: none; border: none;
+        .modal-content {
+            background: #1e293b; color: white; border-radius: 12px;
+            max-width: 800px; margin: 40px auto; padding: 24px; border: 1px solid #334155;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
         }
 
-        #pdf-modal {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); z-index: 500; justify-content: center; align-items: center; padding: 20px;
-        }
-        #pdf-preview-wrapper {
-            width: 210mm; max-width: 95vw; height: 85vh; overflow-y: auto;
-            background: #e2e8f0; padding: 20px; border-radius: 4px;
-        }
-        #pdf-preview-content {
-            background: white; width: 100%; min-height: 297mm; padding: 20mm; font-family: sans-serif !important;
-        }
-
-        .toolbar {
-            background: #1e293b; padding: 10px 20px; border-bottom: 1px solid #334155;
-            display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
-        }
-        .btn-action { padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 700; transition: all 0.2s; }
-        .btn-tool { background: #334155; color: #cbd5e1; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; transition: all 0.2s; cursor: pointer; border: 1px solid transparent; }
-        .btn-tool:hover { background: #475569; color: white; border-color: #3b82f6; }
-
-        #custom-prompt {
-            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: #1e293b; color: white; padding: 24px; border-radius: 12px;
-            z-index: 2000; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
-            width: 400px; flex-direction: column; gap: 16px; border: 1px solid #3b82f6;
-        }
-
-        .katex-display { margin: 1em 0; overflow-x: auto; overflow-y: hidden; }
+        #full-edit-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1500; padding: 0; background: #0f172a; }
+        #full-edit-container { width: 100%; height: 100%; display: flex; flex-direction: column; background: #1e293b; overflow: hidden; }
+        #full-edit-body { flex: 1; display: flex; overflow: hidden; }
+        #full-edit-area { flex: 1; width: 50%; padding: 30px; background: #0f172a; color: #f1f5f9; font-family: 'JetBrains Mono', monospace; font-size: 15px; line-height: 1.7; outline: none; resize: none; border: none; }
         
-        img { transition: opacity 0.3s; max-width: 100%; height: auto; border-radius: 4px; display: inline-block; }
-        img.load-error { border: 2px dashed #ef4444; padding: 15px; background: #fee2e2; position: relative; display: block !important; margin: 10px auto; text-align: center; border-radius: 8px; }
-        img.load-error::after { content: "이미지를 불러올 수 없습니다 (보안 정책 또는 URL 만료). 'IMG UPLOAD' 기능을 사용해 파일을 직접 업로드해 주세요."; color: #b91c1c; font-size: 11px; display: block; font-weight: bold; }
+        #full-preview-pane { flex: 1; width: 50%; background: #94a3b8; overflow: auto; display: none; }
+        #full-preview-pane .prose-wrapper { width: 100%; padding: 40px; display: flex; flex-direction: column; align-items: center; }
+
+        .toolbar { background: #1e293b; padding: 10px 16px; border-bottom: 1px solid #334155; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .btn-tool { background: #334155; color: #cbd5e1; padding: 6px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; border: 1px solid transparent; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
+        .btn-tool:hover { background: #475569; color: white; border-color: #3b82f6; }
+        .btn-action { padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; transition: 0.2s; }
+
+        #message-box { display: none; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #3b82f6; color: white; padding: 12px 24px; border-radius: 30px; z-index: 6000; font-weight: bold; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
+
+        .color-preset { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,0.2); transition: transform 0.2s; }
+        .font-size-btn { width: 42px; height: 34px; background: #3b82f6; color: white; border-radius: 6px; font-weight: bold; font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .font-size-val { min-width: 40px; text-align: center; font-family: 'JetBrains Mono'; font-weight: bold; color: #60a5fa; }
+
+        /* 레이아웃 전환 CSS */
+        .layout-full-editor #right-pane, .layout-full-editor #resizer { display: none !important; }
+        .layout-full-editor #left-pane { width: 100% !important; }
+        .layout-full-preview #left-pane, .layout-full-preview #resizer { display: none !important; }
+        .layout-full-preview #right-pane { width: 100% !important; display: block !important; }
+
+        .toc-list { background: #f8fafc; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; border: 1px solid #e2e8f0; border-left: 5px solid #3b82f6; color: #1e293b; }
+        .hotkey-input { background: #0f172a; border: 1px solid #475569; color: #60a5fa; padding: 4px 8px; border-radius: 4px; font-family: monospace; width: 100%; outline: none; }
+        
+        /* 이미지 업로드 존 강조 스타일 */
+        #image-drop-zone.dragover { border-color: #3b82f6; background-color: rgba(59, 130, 246, 0.15); }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-200 antialiased">
 
+    <div id="message-box"></div>
+
+    <!-- 모달: 버전 히스토리 -->
+    <div id="history-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-blue-400">버전 히스토리</h3>
+                <button onclick="closeModal('history-modal')" class="text-gray-400 hover:text-white">✕</button>
+            </div>
+            <div id="version-list" class="max-h-[400px] overflow-y-auto space-y-2 pr-2"></div>
+            <div class="mt-6 flex justify-end">
+                <button onclick="closeModal('history-modal')" class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-md font-bold">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 모달: 단축키 설정 -->
+    <div id="hotkeys-modal" class="modal-overlay">
+        <div class="modal-content !max-w-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-blue-400">단축키 설정</h3>
+                <button onclick="closeModal('hotkeys-modal')" class="text-gray-400 hover:text-white">✕</button>
+            </div>
+            <div class="max-h-[450px] overflow-y-auto pr-2">
+                <table class="w-full text-left text-sm">
+                    <thead><tr><th class="p-2 border-b border-gray-700">기능</th><th class="p-2 border-b border-gray-700">단축키 매핑</th></tr></thead>
+                    <tbody id="hotkey-settings-body"></tbody>
+                </table>
+            </div>
+            <div class="mt-6 flex justify-end gap-2">
+                <button onclick="saveHotkeys()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md font-bold transition">저장 및 적용</button>
+                <button onclick="closeModal('hotkeys-modal')" class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-md font-bold transition">취소</button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- 모달: 항목 삽입 -->
+    <div id="insert-modal" class="modal-overlay">
+        <div class="modal-content !max-w-md">
+            <h4 id="insert-title" class="font-bold text-blue-400 mb-4 text-lg">항목 삽입</h4>
+            <div id="url-section" class="flex flex-col gap-4">
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1">표시할 텍스트 (Alt)</label>
+                    <input type="text" id="link-text-input" class="w-full bg-gray-900 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none focus:border-blue-500">
+                </div>
+                
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1">URL 주소 / 이미지 주소</label>
+                    <input type="text" id="link-url-input" class="w-full bg-gray-900 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none focus:border-blue-500">
+                </div>
+                <div id="new-window-option" class="flex items-center gap-2 py-1">
+                    <input type="checkbox" id="url-new-window" class="w-4 h-4 rounded border-gray-700 bg-gray-900 text-blue-600">
+                    <label for="url-new-window" class="text-sm text-gray-300">새 창에서 열기 (_blank)</label>
+                </div>
+            </div>
+            <div id="upload-section" class="hidden">
+                <div id="image-drop-zone" class="w-full py-10 border-2 border-dashed border-gray-600 rounded-lg flex flex-col items-center justify-center bg-gray-800 cursor-pointer transition-colors">
+                    <svg class="w-8 h-8 text-gray-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    <p class="text-xs text-gray-400 text-center px-4">이미지를 드롭하거나 여기를 클릭하여 선택하세요</p>
+                    <input type="file" id="image-upload-input" class="hidden" accept="image/*">
+                </div>
+                <div id="upload-status" class="mt-2 text-xs text-blue-400 font-bold text-center hidden"></div>
+            </div>
+            <div id="img-options" class="hidden mt-4">
+                <label class="text-xs text-gray-400 block mb-1 font-bold">너비 (예: 100%, 300px)</label>
+                <input type="text" id="img-width-input" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-xs outline-none" placeholder="100%">
+            </div>
+            <div class="flex gap-2 justify-end mt-6 pt-4 border-t border-gray-700">
+                <button id="insert-confirm-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md font-bold">확인</button>
+                <button onclick="closeModal('insert-modal')" class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-md font-bold transition">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 메인 레이아웃 -->
     <div class="container mx-auto p-4 lg:p-6">
-        <header class="text-center mb-8">
-            <h1 class="text-4xl font-bold text-white mb-2 tracking-tight">Markdown PDF 에디터 Pro</h1>
-            <p class="text-gray-400 text-sm">실시간 동기화 및 렌더링 오류 수정 버전 (V4.4)</p>
+        <header class="flex justify-between items-end mb-6">
+            <div>
+                <h1 class="text-4xl font-bold text-white mb-1 tracking-tight">Markdown PDF 에디터 Pro</h1>
+                <p class="text-gray-400 text-sm">전문 통합 워크플로우 시스템 (V5.68)</p>
+            </div>
+            <div class="flex gap-2 mb-1">
+                <button onclick="toggleLayout('write')" class="bg-gray-800 text-[10px] text-gray-400 px-3 py-1.5 rounded border border-gray-700 hover:text-white transition">WriteFull</button>
+                <button onclick="toggleLayout('split')" class="bg-gray-800 text-[10px] text-gray-400 px-3 py-1.5 rounded border border-gray-700 hover:text-white transition">Split</button>
+                <button onclick="toggleLayout('view')" class="bg-gray-800 text-[10px] text-gray-400 px-3 py-1.5 rounded border border-gray-700 hover:text-white transition">ViewFull</button>
+            </div>
         </header>
 
-        <!-- 메인 툴바 -->
         <div class="bg-gray-800 p-4 rounded-t-xl border-x border-t border-gray-700 flex flex-wrap items-center justify-between gap-4 shadow-xl">
-            <div class="flex flex-wrap gap-2">
-                <label for="file-upload-input" class="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white btn-action transition shadow-md" title="마크다운 또는 텍스트 파일을 불러옵니다.">파일 업로드</label>
+            <div class="flex flex-wrap gap-2 items-center">
+                <label for="file-upload-input" class="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white btn-action transition shadow-md">파일 업로드</label>
                 <input id="file-upload-input" type="file" class="hidden" accept=".md,.txt">
-                
                 <div class="h-8 w-[1px] bg-gray-600 mx-1"></div>
-
-                <button id="pdf-save-btn" class="bg-red-600 hover:bg-red-700 text-white btn-action transition shadow-md" title="인쇄용 PDF 파일 생성">PDF 저장</button>
-                <button id="md-save-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white btn-action transition shadow-md" title="마크다운(.md) 형식 저장">MD 저장</button>
-                <button id="txt-save-btn" class="bg-emerald-600 hover:bg-emerald-700 text-white btn-action transition shadow-md" title="일반 텍스트(.txt) 형식 저장">TXT 저장</button>
-                
+                <button id="pdf-save-btn" class="bg-red-600 hover:bg-red-700 text-white btn-action transition shadow-md">PDF 저장/미리보기 (새창)</button>
+                <button id="md-save-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white btn-action transition shadow-md">MD 저장</button>
+                <button id="txt-save-btn" class="bg-emerald-600 hover:bg-emerald-700 text-white btn-action transition shadow-md">TXT 저장</button>
                 <div class="h-8 w-[1px] bg-gray-600 mx-1"></div>
-                <button id="new-window-btn" class="bg-purple-600 hover:bg-purple-700 text-white btn-action transition shadow-md" title="HTML 결과물을 새 창에서 확인">새 창 보기</button>
-                <button id="open-full-edit" class="bg-slate-600 hover:bg-slate-700 text-white btn-action transition shadow-md" title="전체 화면 편집 및 실시간 동기화 모드">전체 화면 편집</button>
+                <button onclick="insertTag('pagebreak', markdownInput)" class="bg-orange-600 hover:bg-orange-700 text-white btn-action transition shadow-md">PageBreak</button>
+                <button id="generate-toc-btn-main" class="bg-purple-600 hover:bg-purple-700 text-white btn-action transition shadow-md">목차 생성</button>
+                <button id="open-full-edit" class="bg-slate-600 hover:bg-slate-700 text-white btn-action transition shadow-md">전체 화면 편집</button>
             </div>
-
             <div class="flex items-center gap-4 bg-gray-900 px-4 py-2 rounded-full border border-gray-700 shadow-inner">
-                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Global Font Size</span>
-                <input type="range" id="font-size-slider" min="12" max="32" value="18" class="w-32 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer">
-                <span id="font-size-label" class="text-sm font-bold text-blue-400 w-10 text-center">18px</span>
+                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Base Font Size</span>
+                <input type="range" id="font-size-slider" min="10" max="40" value="15" class="w-24 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer">
+                <span id="font-size-label" class="text-sm font-bold text-blue-400 w-10 text-center">15px</span>
+                <div class="h-4 w-[1px] bg-gray-700 mx-1"></div>
+                <button onclick="showHistory()" class="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 transition">History</button>
+                <button onclick="openHotkeyModal()" class="text-[11px] font-bold text-blue-400 hover:text-blue-300 transition">Hotkeys</button>
+                <button id="theme-toggle-btn" class="text-[11px] font-bold text-gray-400 hover:text-white ml-2 transition">🌓</button>
             </div>
         </div>
 
-        <main class="flex h-[65vh] border-x border-b border-gray-700 rounded-b-xl overflow-hidden shadow-2xl bg-gray-950">
+        <main id="editor-main" class="flex h-[68vh] border-x border-b border-gray-700 rounded-b-xl overflow-hidden shadow-2xl bg-gray-950">
             <div id="left-pane" class="flex flex-col h-full w-1/2 border-r border-gray-700 overflow-hidden">
-                <textarea id="markdown-input" class="w-full h-full p-8 bg-transparent resize-none focus:outline-none text-gray-300 leading-relaxed font-mono text-sm" placeholder="여기에 내용을 입력하세요..."></textarea>
+                <textarea id="markdown-input" class="w-full h-full p-8 bg-transparent resize-none focus:outline-none text-gray-300 leading-relaxed font-mono text-sm" placeholder="내용을 입력하세요..."></textarea>
             </div>
             <div id="resizer" class="w-1 bg-gray-700 cursor-col-resize hover:bg-blue-500 transition-colors flex-shrink-0"></div>
-            <div id="right-pane" class="flex flex-col h-full flex-grow overflow-hidden bg-white">
-                <div id="html-output-container" class="h-full overflow-y-auto scroll-smooth">
-                    <div id="html-output" class="p-12 prose prose-lg w-full max-w-none" style="font-size: 18px;"></div>
+            <div id="right-pane" class="flex flex-col h-full flex-grow overflow-hidden">
+                <div id="html-output-container" class="h-full scroll-smooth">
+                    <div id="html-output" class="prose prose-lg" style="font-size: 15px;"></div>
                 </div>
             </div>
         </main>
@@ -156,551 +261,834 @@
     <div id="full-edit-modal">
         <div id="full-edit-container">
             <div class="toolbar">
-                <div class="flex items-center gap-2">
-                    <button id="apply-full-edit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded text-xs font-bold transition shadow-md" title="저장하고 닫기 (Ctrl+S)">저장후닫기</button>
-                    <button id="close-full-edit" class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-1.5 rounded text-xs font-bold transition">취소</button>
-                    <button id="refresh-preview-btn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1.5 rounded text-xs font-bold shadow-sm transition">미리보기 복구</button>
+                <div class="flex items-center gap-1">
+                    <button id="apply-full-edit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-xs font-bold shadow-md transition">저장후닫기</button>
+                    <button id="close-full-edit" class="bg-gray-600 hover:bg-gray-500 text-white px-3 py-1.5 rounded text-xs font-bold transition">취소</button>
+                    <button id="open-new-window-btn" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-xs font-bold shadow-md transition">미리보기(새창)</button>
                 </div>
                 <div class="flex-grow"></div>
                 <div class="flex flex-wrap gap-1 items-center">
-                    <button onclick="insertTag('h1', fullEditArea)" class="btn-tool" title="제목 1 (H1)">H1</button>
-                    <button onclick="insertTag('h2', fullEditArea)" class="btn-tool" title="제목 2 (H2)">H2</button>
-                    <button onclick="insertTag('h3', fullEditArea)" class="btn-tool" title="제목 3 (H3)">H3</button>
+                    <button onclick="insertTag('h1', fullEditArea)" class="btn-tool">H1</button>
+                    <button onclick="insertTag('h2', fullEditArea)" class="btn-tool">H2</button>
+                    <button onclick="insertTag('h3', fullEditArea)" class="btn-tool">H3</button>
                     <div class="h-5 w-[1px] bg-gray-600 mx-1"></div>
-                    <button onclick="insertTag('align-left', fullEditArea)" class="btn-tool" title="왼쪽 정렬">⫷</button>
-                    <button onclick="insertTag('align-center', fullEditArea)" class="btn-tool" title="가운데 정렬">〓</button>
-                    <button onclick="insertTag('align-right', fullEditArea)" class="btn-tool" title="오른쪽 정렬">⫸</button>
+                    <button onclick="insertTag('align-left', fullEditArea)" class="btn-tool" title="왼쪽">⫷</button>
+                    <button onclick="insertTag('align-center', fullEditArea)" class="btn-tool" title="가운데">〓</button>
+                    <button onclick="insertTag('align-right', fullEditArea)" class="btn-tool" title="오른쪽">⫸</button>
                     <div class="h-5 w-[1px] bg-gray-600 mx-1"></div>
-                    <button onclick="insertTag('bold', fullEditArea)" class="btn-tool font-bold" title="굵게 (Ctrl+B)">B</button>
-                    <button onclick="insertTag('italic', fullEditArea)" class="btn-tool italic" title="기울임 (Ctrl+I)">I</button>
-                    <button onclick="insertTag('quote', fullEditArea)" class="btn-tool" title="인용구 (Ctrl+.)">"</button>
-                    <button onclick="insertTag('code', fullEditArea)" class="btn-tool" title="코드 블록">Code</button>
-                    <button onclick="insertTag('br', fullEditArea)" class="btn-tool" title="줄바꿈 (Ctrl+Shift+Enter)">BR</button>
+                    <button onclick="insertTag('bold', fullEditArea)" class="btn-tool font-bold">B</button>
+                    <button onclick="insertTag('italic', fullEditArea)" class="btn-tool italic">I</button>
+                    <button onclick="insertTag('quote', fullEditArea)" class="btn-tool">Quote</button>
+                    <button onclick="insertTag('br', fullEditArea)" class="btn-tool">BR</button>
                     <div class="h-5 w-[1px] bg-gray-600 mx-1"></div>
-                    <button onclick="insertTag('table', fullEditArea)" class="btn-tool bg-indigo-900" title="표 생성">Table</button>
-                    <button onclick="handleTableAction('addRow', fullEditArea)" class="btn-tool" title="행 추가 (Shift+Alt+Down)">Row+</button>
-                    <button onclick="handleTableAction('addCol', fullEditArea)" class="btn-tool" title="열 추가">Col+</button>
+                    <button onclick="insertTag('table', fullEditArea)" class="btn-tool bg-indigo-900">Table</button>
+                    <button onclick="handleTableAction('addRow', fullEditArea)" class="btn-tool">Row+</button>
+                    <button onclick="handleTableAction('addCol', fullEditArea)" class="btn-tool">Col+</button>
                     <div class="h-5 w-[1px] bg-gray-600 mx-1"></div>
-                    <button onclick="showLinkPrompt(fullEditArea, 'link')" class="btn-tool" title="텍스트 링크 삽입">URL Link</button>
-                    <button onclick="showLinkPrompt(fullEditArea, 'url')" class="btn-tool" title="웹 이미지 URL로 삽입">IMG URL</button>
-                    <button onclick="showLinkPrompt(fullEditArea, 'upload')" class="btn-tool bg-blue-900" title="파일 업로드로 삽입 (추천)">IMG UPLOAD</button>
-                    <button onclick="insertTag('pagebreak', fullEditArea)" class="btn-tool bg-orange-700 text-white" title="페이지 나누기 (Ctrl+Enter)">Page</button>
-                    <div class="h-5 w-[1px] bg-gray-600 mx-1"></div>
-                    <input type="color" id="color-picker-full" class="w-6 h-6 bg-transparent border-none cursor-pointer" value="#3b82f6" title="글자 색상 선택">
-                    <button onclick="insertTag('color', fullEditArea, 'color-picker-full')" class="btn-tool">Color</button>
-                    <input type="number" id="font-size-apply-full" value="20" min="8" max="72" class="w-12 bg-gray-800 text-white text-xs px-1 rounded border border-gray-600 h-6">
-                    <button onclick="insertTag('fontsize', fullEditArea, 'font-size-apply-full')" class="btn-tool">Size</button>
+                    <button onclick="showInsertModal(fullEditArea, 'url')" class="btn-tool">Link</button>
+                    <button onclick="showInsertModal(fullEditArea, 'img_url')" class="btn-tool bg-indigo-800">IMG Link</button>
+                    <button onclick="showInsertModal(fullEditArea, 'upload')" class="btn-tool bg-blue-900">IMG UP</button>
+                    <button onclick="generateTOC(fullEditArea)" class="btn-tool bg-purple-700">TOC</button>
+                    <button onclick="insertTag('pagebreak', fullEditArea)" class="btn-tool bg-orange-700 text-white">Page Break</button>
+                </div>
+   
+                
+                
+            </div>
+            <div class="toolbar !bg-slate-900 !border-t-0 justify-between">
+                <div class="flex items-center gap-2">
+                    <div onclick="insertTag('color', fullEditArea, '#ff4d4d')" class="color-preset bg-[#ff4d4d]" title="Red"></div>
+                    <div onclick="insertTag('color', fullEditArea, '#1dd1a1')" class="color-preset bg-[#1dd1a1]" title="Green"></div>
+                    <div onclick="insertTag('color', fullEditArea, '#54a0ff')" class="color-preset bg-[#54a0ff]" title="Blue"></div>
+                    <div onclick="insertTag('color', fullEditArea, '#feca57')" class="color-preset bg-[#feca57]" title="Yellow"></div>
+                    <div onclick="insertTag('color', fullEditArea, '#a29bfe')" class="color-preset bg-[#a29bfe]" title="Purple"></div>
+                    <input type="color" id="custom-color-picker" class="w-7 h-7 bg-transparent cursor-pointer p-0 ml-1">
+                    <button onclick="insertTag('color', fullEditArea, document.getElementById('custom-color-picker').value)" class="text-[10px] bg-blue-600 text-white px-2 py-1 rounded">Apply</button>
+                </div>
+                <div class="flex items-center gap-1">
+                    <button onclick="adjustFontSize(-1)" class="font-size-btn">-</button>
+                    <span id="font-size-display" class="font-size-val">15</span>
+                    <button onclick="adjustFontSize(1)" class="font-size-btn">+</button>
+                    <button onclick="insertTag('fontsize', fullEditArea)" class="btn-tool bg-blue-600 text-white ml-1">SET</button>
+                    <div class="h-6 w-[1px] bg-gray-600 mx-1"></div>
+                    <select id="lang-select" class="bg-gray-800 text-white text-[10px] px-2 h-8 rounded border border-gray-600">
+                        <option value="python">Python</option>
+                        <option value="javascript">JS</option>
+                        <option value="html">HTML</option>
+                    </select>
+                    <button onclick="insertCodeWithLang(fullEditArea)" class="btn-tool">Code Block</button>
                 </div>
             </div>
-            <textarea id="full-edit-area" spellcheck="false" class="scroll-smooth"></textarea>
-        </div>
-    </div>
-
-    <!-- 링크/이미지 삽입 팝업 -->
-    <div id="custom-prompt" class="flex flex-col shadow-2xl">
-        <h4 id="prompt-title" class="font-bold text-blue-400 mb-2 text-base">항목 삽입</h4>
-        <div class="flex flex-col gap-4">
-            <div id="prompt-url-section">
-                <label id="prompt-label-text" class="text-xs text-gray-400 block mb-1 font-medium">표시 텍스트 / 이미지 설명</label>
-                <input type="text" id="link-text-input" class="w-full bg-gray-900 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none focus:border-blue-500 mb-3" placeholder="텍스트 입력...">
-                <label id="prompt-label-url" class="text-xs text-gray-400 block mb-1 font-medium">URL 주소</label>
-                <input type="text" id="link-url-input" class="w-full bg-gray-900 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none focus:border-blue-500" placeholder="https://...">
-            </div>
-            <div id="prompt-upload-section" class="hidden">
-                <label class="text-xs text-gray-400 block mb-1 font-medium">이미지 파일 선택</label>
-                <input type="file" id="image-upload-input" class="w-full text-xs text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer" accept="image/*">
-                <p class="text-[10px] text-gray-500 mt-2">*업로드된 이미지는 Base64로 저장되어 PDF 변환 시 누락되지 않습니다.</p>
-            </div>
-            <!-- 체크박스 및 이미지 크기 옵션 -->
-            <div id="link-options" class="flex items-center gap-2 bg-gray-800 p-2 rounded">
-                <input type="checkbox" id="link-target-check" class="w-4 h-4 rounded border-gray-700 text-blue-600 bg-gray-900">
-                <label for="link-target-check" class="text-xs text-gray-300">새 창에서 열기 (_blank)</label>
-            </div>
-            <div id="img-options" class="hidden flex flex-col gap-3 bg-gray-800 p-3 rounded">
-                <div class="flex gap-3">
-                    <div class="flex-1">
-                        <label class="text-[10px] text-gray-400 block mb-1 font-bold uppercase tracking-tight">Width (가로)</label>
-                        <input type="text" id="img-width-input" class="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs outline-none" placeholder="100% / 300px">
-                    </div>
-                    <div class="flex-1">
-                        <label class="text-[10px] text-gray-400 block mb-1 font-bold uppercase tracking-tight">Height (세로)</label>
-                        <input type="text" id="img-height-input" class="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs outline-none" placeholder="auto">
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="flex gap-2 justify-end mt-4">
-            <button id="link-confirm-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-md text-sm font-bold shadow-md transition">확인</button>
-            <button onclick="hideLinkPrompt()" class="bg-gray-700 hover:bg-gray-600 text-white px-5 py-2 rounded-md text-sm font-bold transition">취소</button>
-        </div>
-    </div>
-
-    <!-- PDF 저장 미리보기 모달 -->
-    <div id="pdf-modal">
-        <div class="flex flex-col gap-4">
-            <div class="flex justify-between items-center text-white">
-                <h3 class="text-xl font-bold">PDF 저장 미리보기</h3>
-                <div class="flex gap-2">
-                    <button id="modal-download-btn" class="bg-red-600 text-white px-6 py-2 rounded font-bold hover:bg-red-700 transition shadow-lg">다운로드 시작</button>
-                    <button id="modal-pdf-close" class="bg-gray-600 text-white px-6 py-2 rounded font-bold hover:bg-gray-500 transition">닫기</button>
-                </div>
-            </div>
-            <div id="pdf-preview-wrapper">
-                <div id="pdf-preview-content" class="prose prose-lg max-w-none"></div>
+            <div id="full-edit-body">
+                <textarea id="full-edit-area" spellcheck="false" class="scroll-smooth"></textarea>
+                <div id="full-preview-pane"><div class="prose-wrapper"><div class="prose prose-lg text-black"></div></div></div>
             </div>
         </div>
     </div>
 
     <script>
-        const markdownInput = document.getElementById('markdown-input');
-        const htmlOutput = document.getElementById('html-output');
-        const outputContainer = document.getElementById('html-output-container');
-        const fileUploadInput = document.getElementById('file-upload-input');
-        const fullEditModal = document.getElementById('full-edit-modal');
-        const fullEditArea = document.getElementById('full-edit-area');
-        const fontSizeSlider = document.getElementById('font-size-slider');
-        const fontSizeLabel = document.getElementById('font-size-label');
-        const pdfModal = document.getElementById('pdf-modal');
-        const pdfPreviewContent = document.getElementById('pdf-preview-content');
-        
-        const customPrompt = document.getElementById('custom-prompt');
-        const promptTitle = document.getElementById('prompt-title');
-        const promptUrlSection = document.getElementById('prompt-url-section');
-        const promptUploadSection = document.getElementById('prompt-upload-section');
-        const imageUploadInput = document.getElementById('image-upload-input');
-        const imgOptions = document.getElementById('img-options');
-        const linkOptions = document.getElementById('link-options');
-
+        // 전역 변수
+        let markdownInput, fullEditArea, outputContainer, fullPreviewPane, fontSizeSlider;
+        let imageDropZone, imageUploadInput, droppedFile = null;
         let livePreviewWindow = null;
         let currentTargetArea = null;
         let currentPromptMode = 'url';
-        let isSyncingScroll = true;
+        const undoStack = [];
+        let currentSelectionFontSize = 15;
 
-        // --- 히스토리 관리 ---
-        const historyStacks = { 'main': [""], 'full': [""] };
-        function saveHistory(area) {
-            const key = area === markdownInput ? 'main' : 'full';
-            const stack = historyStacks[key];
-            if (stack[stack.length - 1] !== area.value) {
-                stack.push(area.value);
-                if (stack.length > 50) stack.shift();
-            }
-        }
-        function undoAction(area) {
-            const key = area === markdownInput ? 'main' : 'full';
-            const stack = historyStacks[key];
-            if (stack.length > 1) {
-                stack.pop();
-                area.value = stack[stack.length - 1];
-                if (area === markdownInput) updatePreview(); else updateLivePreviewWindow();
-            }
+        // 레이아웃 전환 함수
+        function toggleLayout(mode) {
+            const m = document.getElementById('editor-main');
+            const lp = document.getElementById('left-pane');
+            if (!m || !lp) return;
+            m.classList.remove('layout-full-editor', 'layout-full-preview');
+            if (mode === 'write') m.classList.add('layout-full-editor');
+            else if (mode === 'view') m.classList.add('layout-full-preview');
+            else lp.style.width = '50%';
+            updatePreview();
         }
 
-        // --- KaTeX & Marked ---
-        const renderMath = (element) => {
-            if (!element || !window.renderMathInElement) return;
-            try {
-                window.renderMathInElement(element, {
-                    delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}],
-                    throwOnError: false
-                });
-            } catch (e) { console.warn("KaTeX Error:", e); }
-        };
+        const DEFAULT_CONTENT = `강력한 실시간 A4 미리보기와 정밀한 PDF 내보내기 기능을 갖춘 웹 기반 마크다운 에디터
 
-        const renderer = new marked.Renderer();
-        
-        // 데이터 추출 유틸리티 (marked.js 버전 호환성 대응)
-        const extractData = (arg1, arg2, arg3) => {
-            if (typeof arg1 === 'object' && arg1 !== null && !Array.isArray(arg1)) {
-                return { href: arg1.href, title: arg1.title, text: arg1.text };
-            }
-            return { href: arg1, title: arg2, text: arg3 };
-        };
+**제작자: 박중희 (연세대학교 심리학과 겸임교수) **
 
-        // 링크 렌더러 수정: 'undefined' 버그 수정 및 새 창 속성 강화
-        renderer.link = (arg1, arg2, arg3) => {
-            const data = extractData(arg1, arg2, arg3);
-            const safeHref = data.href || '';
-            const isString = typeof safeHref === 'string';
-            
-            // target=_blank 파라미터 감지 시 새 창 속성 부여
-            let targetAttr = (isString && safeHref.includes('target=_blank')) ? ' target="_blank" rel="noopener noreferrer"' : '';
-            let cleanHref = isString ? safeHref.replace(/[\?&]target=_blank/, '') : '#';
-            
-            // 텍스트가 비어있으면 주소를 텍스트로 사용
-            const displayText = data.text || cleanHref;
-            
-            return `<a href="${cleanHref}" title="${data.title || ''}"${targetAttr}>${displayText}</a>`;
-        };
+본 프로젝트는 단순한 마크다운 뷰어를 넘어, 실제 인쇄 및 PDF 저장 시의 레이아웃을 실시간으로 확인하며 문서를 작성할 수 있도록 설계된 전문 편집 도구입니다.
 
-        // 이미지 렌더러 수정
-        renderer.image = (arg1, arg2, arg3) => {
-            const data = extractData(arg1, arg2, arg3);
-            return `<img src="${data.href}" title="${data.title || ''}" alt="${data.text || ''}" onerror="this.classList.add('load-error'); this.src='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'; this.onerror=null;">`;
-        };
+<div class="align-center">
 
-        marked.setOptions({ 
-            renderer: renderer, 
-            gfm: true, 
-            breaks: true, 
-            highlight: (code, lang) => hljs.getLanguage(lang) ? hljs.highlight(code, { language: lang }).value : code 
-        });
+### ✨ 주요 기능 상세 설명 및 예제 (Features & Examples)
 
-        const preProcess = (text, isPDF = false) => {
-            let processed = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-            const guide = '<div class="page-break-divider"></div>';
-            processed = processed.replace(/<div class="page-break"><\/div>/g, isPDF ? '<div class="page-break"></div>' : guide + '<div class="page-break"></div>');
-            return processed;
-        };
+</div>
 
-        const updatePreview = () => { 
-            htmlOutput.innerHTML = marked.parse(preProcess(markdownInput.value)); 
-            renderMath(htmlOutput); 
-        };
+1. 🖼️ 완벽한 이미지 관리 (CORS 문제 해결)
+웹상의 이미지를 가져오거나 내 컴퓨터의 파일을 직접 문서에 포함할 수 있습니다.
+- **IMG URL (웹 주소 방식)**: 인터넷에 공개된 이미지 경로를 사용합니다.
+- **IMG UPLOAD (로컬 업로드 방식)** - 권장: 이미지가 텍스트 데이터로 문서에 직접 포함되어 PDF 저장 시 100% 출력됩니다.
 
-        // 실시간 미리보기 업데이트
-        const updateLivePreviewWindow = () => {
-            if (!livePreviewWindow || livePreviewWindow.closed) return;
-            try {
-                const container = livePreviewWindow.document.getElementById('live-container');
-                if (container) {
-                    container.innerHTML = marked.parse(preProcess(fullEditArea.value));
-                    container.style.fontSize = htmlOutput.style.fontSize || "18px";
-                    renderMath(container);
-                }
-            } catch (e) {
-                console.error("Live sync error:", e);
-            }
-        };
+<div class="align-center">
 
-        // --- 스크롤 동기화 ---
-        markdownInput.addEventListener('scroll', () => {
-            if (!isSyncingScroll) return;
-            const percentage = markdownInput.scrollTop / (markdownInput.scrollHeight - markdownInput.clientHeight);
-            outputContainer.scrollTop = percentage * (outputContainer.scrollHeight - outputContainer.clientHeight);
-        });
+📊 **스마트 표(Table) 편집기**
+마크다운 표 작성이 서툴러도 버튼과 단축키만으로 정교한 표를 만들 수 있습니다.
 
-        // 전체 화면 편집 모드에서의 스크롤 동기화 로직 보강
-        fullEditArea.addEventListener('scroll', () => {
-            if (!livePreviewWindow || livePreviewWindow.closed) return;
-            const percentage = fullEditArea.scrollTop / (fullEditArea.scrollHeight - fullEditArea.clientHeight);
-            const previewDoc = livePreviewWindow.document.documentElement;
-            livePreviewWindow.scrollTo({
-                top: percentage * (previewDoc.scrollHeight - livePreviewWindow.innerHeight),
-                behavior: 'auto'
-            });
-        });
+| 항목 | 값 | 비고 |
+| :--- | :--- | :--- |
+| 데이터1 | 100 | 완료 |
 
-        // --- 표 편집 로직 ---
-        function handleTableAction(action, area) {
-            const text = area.value, lines = text.split('\n');
-            const cursorPos = area.selectionStart;
-            let currentLineIdx = text.substring(0, cursorPos).split('\n').length - 1;
-            const currentLine = lines[currentLineIdx];
+</div>
 
-            if (!currentLine || !currentLine.includes('|')) { insertTag('table', area); return; }
+- **Row+ (행 추가)**: 표 칸에 커서를 두고 단축키 Alt+9.
+- **Col+ (열 추가)**: 클릭 시 표 전체에 새로운 열(Alt+0) 일괄 추가.
+- **행 복제 (Shift + Alt + ↓)**: 현재 타이핑 중인 줄을 아래로 복사.
 
-            if (action === 'addRow') {
-                const colCount = (currentLine.match(/\|/g) || []).length - 1;
-                const newRow = '| ' + ' | '.repeat(colCount) + ' |';
-                lines.splice(currentLineIdx + 1, 0, newRow);
-                area.value = lines.join('\n');
-            } 
-            else if (action === 'addCol') {
-                let startIdx = currentLineIdx, endIdx = currentLineIdx;
-                while(startIdx > 0 && lines[startIdx-1].includes('|')) startIdx--;
-                while(endIdx < lines.length - 1 && lines[endIdx+1].includes('|')) endIdx++;
-                for (let i = startIdx; i <= endIdx; i++) {
-                    const line = lines[i].trim();
-                    lines[i] = line.includes('---') ? line.replace(/\|$/, ' | :--- |') : line.replace(/\|$/, ' |  |');
-                }
-                area.value = lines.join('\n');
-            }
-            saveHistory(area); if (area === markdownInput) updatePreview(); else updateLivePreviewWindow();
-        }
+<div class="page-break"></div>
 
-        function copyCurrentRow(area) {
-            const text = area.value, lines = text.split('\n');
-            const currentLineIdx = text.substring(0, area.selectionStart).split('\n').length - 1;
-            const lineToCopy = lines[currentLineIdx];
-            if (!lineToCopy || !lineToCopy.includes('|')) return;
-            lines.splice(currentLineIdx + 1, 0, lineToCopy);
-            area.value = lines.join('\n');
-            saveHistory(area); if (area === markdownInput) updatePreview(); else updateLivePreviewWindow();
-        }
+📄 **실시간 PDF/A4 미리보기 및 페이지 제어**
+이 에디터의 핵심은 **"보이는 대로 인쇄된다"**는 점입니다.
+- **페이지 나누기 (Page Break)**: \`<div class="page-break"></div>\` 또는 단축키 Ctrl + Enter. 미리보기 창에 물리적인 종이 간격 가이드가 나타나며, PDF 저장 시 해당 지점부터 다음 페이지에 인쇄됩니다.
+- **확장형 레이아웃**: 이제 미리보기는 최대 1000px 너비로 고정되어 쾌적한 가독성을 제공합니다. (좌우 여백 각 60px 적용)
 
-        // --- 단축키 설정 ---
-        const setupShortcuts = (area) => {
-            area.addEventListener('keydown', (e) => {
-                if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undoAction(area); return; }
-                if (e.shiftKey && e.altKey && e.key === 'ArrowDown') { e.preventDefault(); copyCurrentRow(area); return; }
-                if (e.ctrlKey) {
-                    switch(e.key.toLowerCase()) {
-                        case 'b': e.preventDefault(); insertTag('bold', area); break;
-                        case 'i': e.preventDefault(); insertTag('italic', area); break;
-                        case '.': e.preventDefault(); insertTag('quote', area); break; 
-                        case 'enter': e.preventDefault(); if (e.shiftKey) insertTag('br', area); else insertTag('pagebreak', area); break;
-                    }
-                }
-            });
-            area.addEventListener('input', () => {
-                saveHistory(area);
-                if (area === fullEditArea) updateLivePreviewWindow();
-            });
-        };
-        setupShortcuts(markdownInput); setupShortcuts(fullEditArea);
-
-        // --- 이미지/링크 모달 제어 ---
-        function showLinkPrompt(targetArea, mode) {
-            currentTargetArea = targetArea;
-            currentPromptMode = mode;
-            const selected = targetArea.value.substring(targetArea.selectionStart, targetArea.selectionEnd);
-            document.getElementById('link-text-input').value = selected;
-            document.getElementById('link-url-input').value = "";
-            document.getElementById('link-target-check').checked = false;
-            
-            if (mode === 'link') {
-                promptTitle.innerText = "URL 링크 삽입";
-                promptUrlSection.classList.remove('hidden');
-                promptUploadSection.classList.add('hidden');
-                imgOptions.classList.add('hidden');
-                linkOptions.classList.remove('hidden');
-            } else if (mode === 'url') {
-                promptTitle.innerText = "웹 이미지 URL 삽입";
-                promptUrlSection.classList.remove('hidden');
-                promptUploadSection.classList.add('hidden');
-                imgOptions.classList.remove('hidden');
-                linkOptions.classList.add('hidden');
-            } else if (mode === 'upload') {
-                promptTitle.innerText = "로컬 이미지 업로드";
-                promptUrlSection.classList.add('hidden');
-                promptUploadSection.classList.remove('hidden');
-                imgOptions.classList.remove('hidden');
-                linkOptions.classList.add('hidden');
-            }
-            customPrompt.style.display = 'flex';
-        }
-
-        function hideLinkPrompt() { customPrompt.style.display = 'none'; }
-
-        document.getElementById('link-confirm-btn').addEventListener('click', async () => {
-            const start = currentTargetArea.selectionStart, end = currentTargetArea.selectionEnd;
-            let tag = "";
-
-            if (currentPromptMode === 'link') {
-                const text = document.getElementById('link-text-input').value || "link";
-                let url = document.getElementById('link-url-input').value || "#";
-                if (document.getElementById('link-target-check').checked) {
-                    url += (url.includes('?') ? '&' : '?') + 'target=_blank';
-                }
-                tag = `[${text}](${url})`;
-            } else if (currentPromptMode === 'url') {
-                const url = document.getElementById('link-url-input').value || "#";
-                const alt = document.getElementById('link-text-input').value || "image";
-                const w = document.getElementById('img-width-input').value || "100%";
-                const h = document.getElementById('img-height-input').value || "auto";
-                tag = `<div class="align-center"><img src="${url}" alt="${alt}" style="width:${w}; height:${h};"></div>`;
-            } else if (currentPromptMode === 'upload') {
-                const file = imageUploadInput.files[0];
-                if (!file) { hideLinkPrompt(); return; }
-                const base64 = await toBase64(file);
-                const w = document.getElementById('img-width-input').value || "100%";
-                const h = document.getElementById('img-height-input').value || "auto";
-                tag = `<div class="align-center"><img src="${base64}" alt="uploaded image" style="width:${w}; height:${h};"></div>`;
-            }
-
-            currentTargetArea.value = currentTargetArea.value.substring(0, start) + tag + currentTargetArea.value.substring(end);
-            saveHistory(currentTargetArea); 
-            if (currentTargetArea === fullEditArea) updateLivePreviewWindow(); else updatePreview();
-            hideLinkPrompt(); currentTargetArea.focus();
-        });
-
-        const toBase64 = file => new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = error => reject(error);
-        });
-
-        // --- 전체 화면 편집 시작 ---
-        document.getElementById('open-full-edit').addEventListener('click', () => {
-            fullEditArea.value = markdownInput.value; saveHistory(fullEditArea);
-            fullEditModal.style.display = 'block'; document.body.style.overflow = 'hidden';
-            openLivePreview(); fullEditArea.focus();
-        });
-
-        function openLivePreview() {
-            const currentFontSize = htmlOutput.style.fontSize || "18px";
-            if (livePreviewWindow && !livePreviewWindow.closed) livePreviewWindow.close();
-            livePreviewWindow = window.open('', 'PDFLivePreview', 'width=1000,height=900');
-            if (livePreviewWindow) {
-                livePreviewWindow.document.write(`
-                    <!DOCTYPE html><html><head><meta charset="UTF-8"><title>실시간 미리보기</title>
-                    <script src="https://cdn.tailwindcss.com?plugins=typography"><\/script>
-                    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-                    <style>
-                        body { background: #334155; padding: 40px; display: flex; flex-direction: column; align-items: center; font-family: sans-serif; scroll-behavior: smooth; }
-                        .a4 { background: white; width: 210mm; min-height: 297mm; padding: 25mm; box-shadow: 0 10px 40px rgba(0,0,0,0.5); margin-bottom: 20px;}
-                        .prose { font-size: ${currentFontSize} !important; }
-                        b { font-weight: 800; }
-                        .page-break { page-break-after: always; height: 0; margin: 0; border: none; }
-                        .page-break-divider { border-top: 2px dashed #3b82f6; margin: 2.5rem 0; position: relative; text-align: center; height: 0; clear: both; }
-                        .page-break-divider::after { content: "페이지 나누기 지점 (PDF Page Break)"; position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: white; padding: 0 12px; font-size: 11px; color: #3b82f6; font-weight: bold; border: 1px solid #3b82f6; border-radius: 12px; white-space: nowrap;}
-                        .align-left { text-align: left; } .align-center { text-align: center; } .align-right { text-align: right; }
-                        img { max-width: 100%; border-radius: 4px; } .align-center img { margin: 0 auto; display: block;}
-                        table { width: 100%; border-collapse: collapse; border: 1px solid #ddd; } th, td { border: 1px solid #ddd; padding: 8px; }
-                        .load-error { border: 2px dashed #ef4444; padding: 20px; background: #fee2e2; color: #b91c1c; font-size: 11px; display: block; text-align: center; width: 100%; }
-                        a { color: #2563eb; text-decoration: underline; }
-                    </style>
-                    </head><body><div id="live-container" class="a4 prose prose-lg max-w-none">${marked.parse(preProcess(fullEditArea.value))}</div></body></html>
-                `);
-                livePreviewWindow.document.close();
-                setTimeout(() => renderMath(livePreviewWindow.document.getElementById('live-container')), 450);
-            }
-        }
-
-        fullEditArea.addEventListener('input', updateLivePreviewWindow);
-
-        document.getElementById('refresh-preview-btn').addEventListener('click', openLivePreview);
-        document.getElementById('apply-full-edit').addEventListener('click', () => {
-            markdownInput.value = fullEditArea.value; saveHistory(markdownInput); updatePreview();
-            fullEditModal.style.display = 'none'; document.body.style.overflow = 'auto';
-            if (livePreviewWindow) livePreviewWindow.close();
-        });
-        document.getElementById('close-full-edit').addEventListener('click', () => {
-            fullEditModal.style.display = 'none'; document.body.style.overflow = 'auto';
-            if (livePreviewWindow) livePreviewWindow.close();
-        });
-
-        function insertTag(type, targetArea) {
-            const start = targetArea.selectionStart, end = targetArea.selectionEnd, selectedText = targetArea.value.substring(start, end);
-            let tagText = "";
-            switch(type) {
-                case 'bold': tagText = `**${selectedText || 'bold'}**`; break;
-                case 'italic': tagText = `*${selectedText || 'italic'}*`; break;
-                case 'quote': tagText = `\n> ${selectedText || 'quote'}`; break;
-                case 'h1': tagText = `\n# ${selectedText || '제목1'}`; break;
-                case 'h2': tagText = `\n## ${selectedText || '제목2'}`; break;
-                case 'h3': tagText = `\n### ${selectedText || '제목3'}`; break;
-                case 'br': tagText = (selectedText || "") + ` </br> `; break;
-                case 'pagebreak': tagText = `\n\n<div class="page-break"></div>\n\n`; break;
-                case 'align-left': tagText = `\n<div class="align-left">\n${selectedText || '내용'}\n</div>\n`; break;
-                case 'align-center': tagText = `\n<div class="align-center">\n${selectedText || '내용'}\n</div>\n`; break;
-                case 'align-right': tagText = `\n<div class="align-right">\n${selectedText || '내용'}\n</div>\n`; break;
-                case 'code': tagText = `\n\`\`\`python\n${selectedText || '# 코드를 입력하세요'}\n\`\`\`\n`; break;
-                case 'table': tagText = `\n| 항목1 | 항목2 |\n| :--- | :--- |\n| 내용1 | 내용2 |\n`; break;
-                case 'color':
-                    const col = document.getElementById('color-picker-full').value;
-                    tagText = `<span style="color:${col}">${selectedText || '색상텍스트'}</span>`;
-                    break;
-                case 'fontsize':
-                    const sz = document.getElementById('font-size-apply-full').value;
-                    tagText = `<span style="font-size:${sz}px">${selectedText || '크기텍스트'}</span>`;
-                    break;
-            }
-            targetArea.value = targetArea.value.substring(0, start) + tagText + targetArea.value.substring(end);
-            saveHistory(targetArea); 
-            if (targetArea === fullEditArea) updateLivePreviewWindow(); else updatePreview();
-            targetArea.focus(); const newPos = start + tagText.length; targetArea.setSelectionRange(newPos, newPos);
-        }
-
-        // --- 파일 저장 및 기타 유틸리티 ---
-        document.getElementById('pdf-save-btn').addEventListener('click', () => {
-            pdfPreviewContent.innerHTML = marked.parse(preProcess(markdownInput.value));
-            renderMath(pdfPreviewContent);
-            pdfPreviewContent.style.fontSize = htmlOutput.style.fontSize;
-            pdfModal.style.display = 'flex';
-        });
-
-        document.getElementById('modal-pdf-close').addEventListener('click', () => pdfModal.style.display = 'none');
-        document.getElementById('modal-download-btn').addEventListener('click', () => {
-            const btn = document.getElementById('modal-download-btn');
-            btn.innerText = "저장 중...";
-            const element = document.createElement('div');
-            element.className = "prose prose-lg max-w-none";
-            element.innerHTML = marked.parse(preProcess(markdownInput.value, true));
-            element.style.padding = "20mm"; element.style.width = "210mm";
-            element.style.fontSize = htmlOutput.style.fontSize;
-            element.style.background = "white";
-            renderMath(element);
-            
-            setTimeout(() => {
-                const opt = { margin: [0, 0, 0, 0], filename: 'document.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true, letterRendering: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['avoid-all', 'css', 'legacy'] } };
-                html2pdf().from(element).set(opt).save().then(() => { pdfModal.style.display = 'none'; btn.innerText = "다운로드 시작"; });
-            }, 1000);
-        });
-
-        document.getElementById('md-save-btn').addEventListener('click', () => {
-            const blob = new Blob([markdownInput.value], { type: 'text/markdown' });
-            saveAs(blob, 'document.md');
-        });
-
-        document.getElementById('txt-save-btn').addEventListener('click', () => {
-            const blob = new Blob([markdownInput.value], { type: 'text/plain' });
-            saveAs(blob, 'document.txt');
-        });
-
-        function saveAs(blob, filename) {
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        fontSizeSlider.addEventListener('input', (e) => { fontSizeLabel.innerText = `${e.target.value}px`; htmlOutput.style.fontSize = `${e.target.value}px`; updateLivePreviewWindow(); });
-        markdownInput.addEventListener('input', updatePreview);
-        fileUploadInput.addEventListener('change', (e) => {
-            const file = e.target.files[0]; if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (ev) => { markdownInput.value = ev.target.result; saveHistory(markdownInput); updatePreview(); };
-            reader.readAsText(file);
-        });
-
-        // Splitter
-        let isResizing = false;
-        document.getElementById('resizer').addEventListener('mousedown', () => {
-            isResizing = true; document.body.style.userSelect = 'none';
-            const moveHandler = (e) => {
-                if (!isResizing) return;
-                const newWidth = e.clientX - document.getElementById('left-pane').parentElement.offsetLeft;
-                if (newWidth > 200 && newWidth < window.innerWidth - 200) document.getElementById('left-pane').style.width = `${newWidth}px`;
-            };
-            const upHandler = () => { isResizing = false; document.body.style.userSelect = 'auto'; document.removeEventListener('mousemove', moveHandler); document.removeEventListener('mouseup', upHandler); };
-            document.addEventListener('mousemove', moveHandler); document.addEventListener('mouseup', upHandler);
-        });
-
-        // Initialize with Full Guide
-        markdownInput.value = `# Markdown PDF 에디터 Pro (V4.4)
-
-### 🖼️ 이미지 삽입 및 보안 정책 안내
-특정 온라인 이미지 주소는 서버 보안 정책(CORS)으로 인해 브라우저 미리보기는 가능해도 **PDF 저장 시 누락**될 수 있습니다.
-
-- **안전한 방법**: **IMG UPLOAD** 버튼을 눌러 내 컴퓨터의 파일을 직접 선택하세요. 
-- 이미지가 문서 내부에 직접 저장되므로 어떤 환경에서도 PDF에 완벽하게 포함됩니다.
-
----
-
-### 1. ⌨️ 핵심 단축키 (Hotkeys)
+⌨️ **생산성 단축키 시스템**
+- **Alt + L / C / R**: 왼쪽 / 가운데 / 오른쪽 정렬
+- **Alt + 8 / 9 / 0**: 표 생성 / 행 추가 / 열 추가
 - **Ctrl + B / I**: 굵게 / 기울임
 - **Ctrl + .**: 인용구 (>)
 - **Ctrl + Enter**: 페이지 나누기 지점 삽입
-- **Ctrl + Shift + Enter**: 줄바꿈 삽입 (</br>)
 - **Ctrl + Z**: 실행 취소 (Undo)
-- **Shift + Alt + ↓**: 표 안에서 현재 행 복제
+- **Shift + Alt + ↓**: 현재 행 아래로 복제
+- **Ctrl + Shift + Enter**: <br> 강제 줄바꿈 삽입
 
-### 2. 📊 스마트 표(Table) 도구
-표 영역 내부에 커서를 두고 상단 툴바의 **Row+**, **Col+**를 활용해 보세요.
+🧪 **학술 및 기술 문서 지원 (LaTeX & Code)**
+- 수식 (LaTeX): 인라인 $a^2 + b^2 = c^2$, 블록 수식 지원.
 
-| 구분 | 도구 | 설명 |
-| :--- | :--- | :--- |
-| 행 관리 | Row+ | 커서 아래에 빈 행을 추가합니다. |
-| 열 관리 | Col+ | 표 전체 영역의 오른쪽에 열을 확장합니다. |
+💾 **멀티 포맷 저장 및 관리**
+PDF, MD, TXT 저장 기능을 모두 지원합니다.`;
 
----
-<div class="page-break"></div>
+ /* ===========================================
+   🔥 고급 실전 단축키 시스템
+   =========================================== */
 
-### 📄 페이지 분할 안내
-위의 파란색 점선 가이드는 PDF 출력 시 페이지가 나뉘는 지점입니다.`;
-        saveHistory(markdownInput); updatePreview();
+let hotkeyConfig = {
+
+    /* 제목 */
+    'h2': 'Ctrl+Alt+2',
+    'h3': 'Ctrl+Alt+3',
+
+    /* 정렬 (Shift+Alt 기반으로 변경) */
+    'align-left': 'Shift+Alt+L',
+    'align-center': 'Shift+Alt+C',
+    'align-right': 'Shift+Alt+R',
+
+    /* 테이블 */
+    'table': 'Alt+8',
+    'addRow': 'Alt+9',
+    'addCol': 'Alt+0',
+
+    /* 수식 */
+    'math-block': 'Alt+M',
+    'math-inline': 'Shift+Alt+M',
+
+    /* 코드 */
+    'code': 'Alt+C',
+
+    /* 문단 제어 */
+    'pagebreak': 'Ctrl+Enter',
+    'br': 'Ctrl+Shift+Enter',
+
+    /* 이동 */
+    'move-down': 'Alt+ArrowDown',
+    'move-up': 'Alt+ArrowUp',
+
+    /* 편집 */
+    'bold': 'Ctrl+B',
+    'italic': 'Ctrl+I',
+    'quote': 'Ctrl+.',
+    'undo': 'Ctrl+Z'
+};
+
+function insertQuickLink() {
+
+    const text = document.getElementById('quick-text').value || 'link';
+    const url = document.getElementById('quick-url').value || '#';
+    const blank = document.getElementById('quick-newtab').checked;
+
+    const isFull = document.getElementById('full-edit-modal').style.display === 'block';
+    const ar = isFull ? fullEditArea : markdownInput;
+
+    let tag;
+
+    if (blank) {
+        tag = `<a href="${url}" target="_blank">${text}</a>`;
+    } else {
+        tag = `[${text}](${url})`;
+    }
+
+    const start = ar.selectionStart;
+    const end = ar.selectionEnd;
+
+    ar.value = ar.value.substring(0, start) + tag + ar.value.substring(end);
+
+    pushHistory(ar.value);
+    updatePreview();
+    ar.focus();
+}
+
+        
+        function showMessage(msg) {
+            const box = document.getElementById('message-box');
+            if (box) { box.innerText = msg; box.style.display = 'block'; setTimeout(() => box.style.display = 'none', 2500); }
+        }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        function pushHistory(val) {
+            if (undoStack.length > 0 && undoStack[undoStack.length - 1] === val) return;
+            undoStack.push(val);
+            if (undoStack.length > 150) undoStack.shift();
+        }
+
+        function preProcess(text) {
+            let pageNum = 1;
+            return text.replace(/<div class="page-break"><\/div>/g, (m) => {
+                return `<div class="page-break-divider" data-page="Page ${++pageNum}"></div><div class="page-break"></div>`;
+            });
+        }
+
+        function renderMath(element) {
+            if (!element || !window.renderMathInElement) return;
+            window.renderMathInElement(element, { delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}], throwOnError: false });
+        }
+
+        function syncScroll(source, target) {
+            if (!source || !target) return;
+            const ratio = source.scrollTop / (source.scrollHeight - source.clientHeight);
+            target.scrollTop = ratio * (target.scrollHeight - target.clientHeight);
+        }
+
+        let renderTimeout;
+        function updatePreview() {
+            clearTimeout(renderTimeout);
+            renderTimeout = setTimeout(() => {
+                const isFull = document.getElementById('full-edit-modal').style.display === 'block';
+                const source = isFull ? fullEditArea : markdownInput;
+                const out = isFull ? fullPreviewPane.querySelector('.prose') : document.getElementById('html-output');
+                if (out && source) {
+                    out.innerHTML = marked.parse(preProcess(source.value));
+                    renderMath(out);
+                    syncScroll(source, isFull ? fullPreviewPane : outputContainer);
+                }
+                if (livePreviewWindow && !livePreviewWindow.closed) syncLiveWindow();
+            }, 10);
+        }
+
+        function syncLiveWindow() {
+            const container = livePreviewWindow ? livePreviewWindow.document.getElementById('live-container') : null;
+            if (container) {
+                const isFull = document.getElementById('full-edit-modal').style.display === 'block';
+                const source = isFull ? fullEditArea : markdownInput;
+                container.innerHTML = marked.parse(preProcess(source.value));
+                if (livePreviewWindow.renderMathInElement) livePreviewWindow.renderMathInElement(container, { delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}] });
+                const ratio = source.scrollTop / (source.scrollHeight - source.clientHeight);
+                livePreviewWindow.scrollTo(0, ratio * (livePreviewWindow.document.documentElement.scrollHeight - livePreviewWindow.innerHeight));
+            }
+        }
+
+        /* 🔥 PDF 저장 미리보기와 시각적으로 동일한 정밀 A4 미리보기 새창 시스템 */
+        function openPreviewWindow() {
+            if (!livePreviewWindow || livePreviewWindow.closed) {
+                livePreviewWindow = window.open('', 'MarkdownLivePreview', 'width=1200,height=1000');
+                const fs = document.getElementById('html-output').style.fontSize || '15px';
+                
+                livePreviewWindow.document.write(`
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>정밀 A4 미리보기</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=typography"><\/script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"><\/script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"><\/script>
+
+<style>
+body {
+    margin: 0;
+    background: #475569; /* PDF 미리보기와 동일한 배경색 */
+    overflow: auto;
+}
+
+/* A4 중앙 정렬 래퍼 */
+#a4-wrapper {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding: 60px 0;
+}
+
+/* 실제 A4 종이 - PDF 미리보기와 시각적 통일 */
+.viewer-content {
+    background: white;
+    width: 100%;
+    max-width: 1000px; /* 요청하신 1000px 레이아웃 유지 */
+    min-height: 297mm;
+    padding: 40px 60px; /* 요청하신 여백 유지 */
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    box-sizing: border-box;
+    color: black;
+    word-break: keep-all;
+    transform-origin: top center;
+    transition: transform 0.2s ease;
+}
+
+/* 마크다운 스타일 */
+.prose {
+    font-size: ${fs} !important;
+    max-width: none;
+    line-height: 1.6;
+}
+
+/* 페이지 구분선 */
+.page-break-divider {
+    border-top: 2px solid #475569;
+    border-bottom: 2px solid #475569;
+    margin: 40px -60px;
+    height: 40px;
+    background: #475569;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.page-break-divider::after {
+    content: attr(data-page);
+    background: #3b82f6;
+    color: white;
+    padding: 4px 18px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+.page-break {
+    page-break-after: always;
+}
+.align-center { text-align: center !important; }
+.align-right { text-align: right !important; }
+
+</style>
+</head>
+
+<body>
+
+<div id="a4-wrapper">
+    <div id="live-container" class="viewer-content prose"></div>
+</div>
+
+<script>
+/* 🔥 A4 자동 반응형 스케일 엔진 */
+function autoScale() {
+    const sheet = document.querySelector('.viewer-content');
+    if (!sheet) return;
+
+    const sheetWidth = sheet.offsetWidth;
+    const availableWidth = window.innerWidth - 40;
+
+    let scale = availableWidth / sheetWidth;
+
+    // 확대 상한 제한
+    if (scale > 1.4) scale = 1.0; 
+
+    sheet.style.transform = "scale(" + scale + ")";
+}
+
+window.addEventListener('resize', autoScale);
+window.onload = autoScale;
+<\/script>
+
+</body>
+</html>
+                `);
+
+                livePreviewWindow.document.close();
+            } else {
+                livePreviewWindow.focus();
+            }
+            setTimeout(syncLiveWindow, 200);
+        }
+
+        function openPDFWindow() {
+            const win = window.open('', 'PDFPreview', 'width=1200,height=1000');
+            const content = marked.parse(preProcess(markdownInput.value));
+            const fs = document.getElementById('html-output').style.fontSize || '15px';
+            win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>PDF 저장 미리보기</title><script src="https://cdn.tailwindcss.com?plugins=typography"><\/script><script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"><script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"><\/script><script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"><\/script><style>body { background: #475569; padding: 40px 0; display: flex; flex-direction: column; align-items: center; margin: 0; } .controls { position: fixed; top: 20px; right: 20px; z-index: 1000; } button { background: #ef4444; color: white; padding: 12px 24px; border-radius: 6px; font-weight: bold; cursor: pointer; border:none; box-shadow: 0 4px 15px rgba(0,0,0,0.3); } #export-target { background: white; width: 100%; max-width: 1000px; padding: 40px 60px; box-shadow: 0 0 40px rgba(0,0,0,0.5); box-sizing: border-box; color: black; word-break: keep-all; } .prose { font-size: ${fs} !important; max-width: none; } .page-break-divider { display: none !important; } .page-break { page-break-after: always; } .align-center { text-align: center !important; } .align-right { text-align: right !important; }</style></head><body><div class="controls"><button onclick="downloadPDF()">최종 PDF 다운로드</button></div><div id="export-target" class="prose">${content}</div><script>renderMathInElement(document.getElementById('export-target'), { delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}] }); function downloadPDF() { html2pdf().from(document.getElementById('export-target')).set({ margin: 0, filename: 'document.pdf', html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).save(); }<\/script></body></html>`);
+            win.document.close();
+        }
+
+        function insertTag(type, area, val = '') {
+            if (!area) return;
+            const start = area.selectionStart, end = area.selectionEnd, sel = area.value.substring(start, end);
+            let prefix = "", suffix = "";
+            switch(type) {
+                case 'bold': prefix = "**"; suffix = "**"; break;
+                case 'italic': prefix = "*"; suffix = "*"; break;
+                case 'quote': prefix = "\n> "; break;
+                case 'br': suffix = "<br>"; break;
+                case 'pagebreak': prefix = "\n\n<div class=\"page-break\"></div>\n\n"; break;
+                case 'h1': prefix = "# "; break;
+                case 'h2': prefix = "## "; break;
+                case 'h3': prefix = "### "; break;
+                case 'align-left': prefix = "\n<div class=\"align-left\">\n\n"; suffix = "\n\n</div>\n"; break;
+                case 'align-center': prefix = "\n<div class=\"align-center\">\n\n"; suffix = "\n\n</div>\n"; break;
+                case 'align-right': prefix = "\n<div class=\"align-right\">\n\n"; suffix = "\n\n</div>\n"; break;
+                case 'table': prefix = "\n| Header | Header |\n| :--- | :--- |\n| Cell | Cell |\n"; break;
+                case 'color': prefix = `<span style="color:${val}">`; suffix = "</span>"; break;
+                case 'fontsize': prefix = `<span style="font-size:${currentSelectionFontSize}px">`; suffix = "</span>"; break;
+            }
+            const text = prefix + (sel || '') + suffix;
+            area.value = area.value.substring(0, start) + text + area.value.substring(end);
+            area.setSelectionRange(start + text.length, start + text.length);
+            pushHistory(area.value);
+            updatePreview();
+            area.focus();
+        }
+
+        function insertCodeWithLang(area) {
+            const lang = document.getElementById('lang-select').value;
+            const start = area.selectionStart, end = area.selectionEnd, sel = area.value.substring(start, end);
+            const tag = `\n\`\`\`${lang}\n${sel || "# code"}\n\`\`\`\n`;
+            area.value = area.value.substring(0, start) + tag + area.value.substring(end);
+            pushHistory(area.value); updatePreview();
+        }
+
+       <!--code block 추가 -->
+       function insertTagCustom(area, prefix, suffix) {
+         if (!area) return;
+
+               const start = area.selectionStart;
+               const end = area.selectionEnd;
+               const sel = area.value.substring(start, end);
+
+                  const inserted = prefix + (sel || "") + suffix;
+
+              area.value = area.value.substring(0, start) + inserted + area.value.substring(end);
+
+               // 커서 위치(선택 유지)
+                   const newPos = start + inserted.length;
+                       area.setSelectionRange(newPos, newPos);
+
+                   pushHistory(area.value);
+                   updatePreview();
+               area.focus();
+                }
+
+
+
+
+        function handleTableAction(action, area) {
+            if (!area) return;
+            const start = area.selectionStart, lines = area.value.split('\n');
+            let idx = area.value.substring(0, start).split('\n').length - 1;
+            const line = lines[idx];
+            if (!line || !line.includes('|')) return insertTag('table', area);
+            if (action === 'addRow') {
+                const colCount = (line.match(/\|/g) || []).length - 1;
+                lines.splice(idx + 1, 0, '|' + '   |'.repeat(colCount));
+            } else if (action === 'addCol') {
+                let s = idx, e = idx;
+                while(s > 0 && lines[s-1].includes('|')) s--;
+                while(e < lines.length - 1 && lines[e+1].includes('|')) e++;
+                for(let i=s; i<=e; i++) {
+                    let row = lines[i].trim();
+                    if (!row.startsWith('|')) row = '| ' + row;
+                    if (!row.endsWith('|')) row = row + ' |';
+                    if (row.match(/\|[:\s-]*---[:\s-]*\|/)) {
+                        lines[i] = row.substring(0, row.lastIndexOf('|')).trim() + ' | :--- |';
+                    } else if (i === s) {
+                        lines[i] = row.substring(0, row.lastIndexOf('|')).trim() + ' | NewHeader |';
+                    } else {
+                        lines[i] = row.substring(0, row.lastIndexOf('|')).trim() + ' |   |';
+                    }
+                }
+            }
+            area.value = lines.join('\n');
+            pushHistory(area.value);
+            updatePreview();
+        }
+
+        function generateTOC(area) {
+            const target = area || markdownInput;
+            const lines = target.value.split('\n');
+            let toc = '\n<div class="toc-list">\n\n#### 목차\n\n';
+            let found = false;
+            lines.forEach(l => {
+                const m = l.match(/^(#{1,3})\s+(.+)$/);
+                if (m) {
+                    const level = m[1].length;
+                    const title = m[2].trim().replace(/<[^>]*>?/gm, '');
+                    toc += `${'  '.repeat(level-1)}- [${title}](#${title.toLowerCase().replace(/ /g,'-')})\n`;
+                    found = true;
+                }
+            });
+            toc += '\n</div>\n\n';
+            if (!found) return showMessage("제목을 찾을 수 없습니다.");
+            target.value = toc + target.value;
+            pushHistory(target.value); updatePreview();
+        }
+
+        function adjustFontSize(delta) {
+            currentSelectionFontSize = Math.max(8, Math.min(72, currentSelectionFontSize + delta));
+            const display = document.getElementById('font-size-display');
+            if(display) display.innerText = currentSelectionFontSize;
+            const label = document.getElementById('font-size-label');
+            if(label) label.innerText = currentSelectionFontSize + 'px';
+        }
+
+        function showInsertModal(area, mode) {
+            currentTargetArea = area; currentPromptMode = mode;
+            document.getElementById('insert-modal').style.display = 'block';
+            const urlSec = document.getElementById('url-section');
+            const upSec = document.getElementById('upload-section');
+            const imgOpt = document.getElementById('img-options');
+            const targetOpt = document.getElementById('new-window-option');
+            const title = document.getElementById('insert-title');
+            if (mode === 'url') { title.innerText = "링크(URL) 삽입"; urlSec.classList.remove('hidden'); targetOpt.classList.remove('hidden'); upSec.classList.add('hidden'); imgOpt.classList.add('hidden'); }
+            else if (mode === 'img_url') { title.innerText = "이미지 주소(URL) 삽입"; urlSec.classList.remove('hidden'); targetOpt.classList.add('hidden'); upSec.classList.add('hidden'); imgOpt.classList.remove('hidden'); }
+            else { title.innerText = "이미지 로컬 업로드"; urlSec.classList.add('hidden'); upSec.classList.remove('hidden'); imgOpt.classList.remove('hidden'); }
+        }
+
+        function openHotkeyModal() {
+            const body = document.getElementById('hotkey-settings-body');
+            body.innerHTML = '';
+            Object.entries(hotkeyConfig).forEach(([key, val]) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td class="p-2 border-b border-gray-800 font-bold text-gray-400 uppercase">${key}</td><td class="p-2 border-b border-gray-800"><input type="text" class="hotkey-input" data-key="${key}" value="${val}"></td>`;
+                body.appendChild(tr);
+            });
+            document.getElementById('hotkeys-modal').style.display = 'block';
+        }
+
+        function saveHotkeys() {
+            const inputs = document.querySelectorAll('.hotkey-input');
+            inputs.forEach(inp => hotkeyConfig[inp.dataset.key] = inp.value);
+            localStorage.setItem('pro_editor_hotkeys_v556', JSON.stringify(hotkeyConfig));
+            closeModal('hotkeys-modal');
+            showMessage("단축키가 즉시 적용되었습니다.");
+        }
+
+        function showHistory() {
+            const list = document.getElementById('version-list');
+            list.innerHTML = '';
+            const snaps = Object.keys(localStorage).filter(k => k.startsWith('pro_snapshot_')).sort().reverse();
+            snaps.forEach(k => {
+                const d = new Date(parseInt(k.split('_')[2])).toLocaleString();
+                const div = document.createElement('div');
+                div.className = 'flex justify-between items-center bg-gray-800 p-2 rounded';
+                div.innerHTML = `<span class="text-xs text-gray-400">${d}</span><button onclick="restoreSnapshot('${k}')" class="text-blue-400 font-bold text-xs hover:underline">복원</button>`;
+                list.appendChild(div);
+            });
+            document.getElementById('history-modal').style.display = 'block';
+        }
+
+        function restoreSnapshot(key) {
+            if (confirm("이 버전으로 복구할까요?")) {
+                markdownInput.value = localStorage.getItem(key);
+                updatePreview(); closeModal('history-modal');
+            }
+        }
+
+        window.onload = function() {
+            markdownInput = document.getElementById('markdown-input');
+            fullEditArea = document.getElementById('full-edit-area');
+            outputContainer = document.getElementById('html-output-container');
+            fullPreviewPane = document.getElementById('full-preview-pane');
+            fontSizeSlider = document.getElementById('font-size-slider');
+            imageDropZone = document.getElementById('image-drop-zone');
+            imageUploadInput = document.getElementById('image-upload-input');
+            
+            markdownInput.value = localStorage.getItem('pro_content_v562') || DEFAULT_CONTENT;
+            pushHistory(markdownInput.value);
+            updatePreview();
+
+            markdownInput.addEventListener('input', () => { updatePreview(); localStorage.setItem('pro_content_v562', markdownInput.value); });
+            fullEditArea.addEventListener('input', updatePreview);
+            markdownInput.addEventListener('scroll', () => syncScroll(markdownInput, outputContainer));
+            fullEditArea.addEventListener('scroll', () => syncScroll(fullEditArea, fullPreviewPane));
+
+            document.getElementById('pdf-save-btn').onclick = openPDFWindow;
+            document.getElementById('generate-toc-btn-main').onclick = () => generateTOC(markdownInput);
+            document.getElementById('open-full-edit').onclick = () => { fullEditArea.value = markdownInput.value; document.getElementById('full-edit-modal').style.display = 'block'; updatePreview(); };
+            document.getElementById('apply-full-edit').onclick = () => { markdownInput.value = fullEditArea.value; pushHistory(markdownInput.value); updatePreview(); closeModal('full-edit-modal'); };
+            document.getElementById('close-full-edit').onclick = () => closeModal('full-edit-modal');
+            document.getElementById('open-new-window-btn').onclick = openPreviewWindow;
+
+            fontSizeSlider.oninput = (e) => { const val = e.target.value; currentSelectionFontSize = parseInt(val); document.getElementById('font-size-label').innerText = val + 'px'; document.getElementById('html-output').style.fontSize = val + 'px'; document.getElementById('font-size-display').innerText = val; };
+
+            if (imageDropZone && imageUploadInput) {
+                imageDropZone.onclick = () => imageUploadInput.click();
+                imageDropZone.ondragover = (e) => { e.preventDefault(); imageDropZone.classList.add('dragover'); };
+                imageDropZone.ondragleave = () => imageDropZone.classList.remove('dragover');
+                imageDropZone.ondrop = (e) => {
+                    e.preventDefault();
+                    imageDropZone.classList.remove('dragover');
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                        droppedFile = e.dataTransfer.files[0];
+                        const status = document.getElementById('upload-status');
+                        status.innerText = `선택됨: ${droppedFile.name}`;
+                        status.classList.remove('hidden');
+                    }
+                };
+                imageUploadInput.onchange = (e) => {
+                    if (e.target.files && e.target.files[0]) {
+                        droppedFile = e.target.files[0];
+                        const status = document.getElementById('upload-status');
+                        status.innerText = `선택됨: ${droppedFile.name}`;
+                        status.classList.remove('hidden');
+                    }
+                };
+            }
+
+            document.getElementById('insert-confirm-btn').onclick = async () => {
+                const start = currentTargetArea.selectionStart;
+                let tag = "";
+                if (currentPromptMode === 'url') {
+                    const txt = document.getElementById('link-text-input').value || "alt";
+                    const url = document.getElementById('link-url-input').value || "#";
+                    tag = `[${txt}](${url}${document.getElementById('url-new-window').checked ? '?target=_blank' : ''})`;
+                } else if (currentPromptMode === 'img_url') {
+                    const url = document.getElementById('link-url-input').value || "#";
+                    const width = document.getElementById('img-width-input').value || "100%";
+                    tag = `\n<div class="align-center"><img src="${url}" style="width:${width};"></div>\n`;
+                } else {
+                    const f = droppedFile || (imageUploadInput ? imageUploadInput.files[0] : null);
+                    if (f) {
+                        const src = await new Promise(r => { const rd = new FileReader(); rd.onload = ev => r(ev.target.result); rd.readAsDataURL(f); });
+                        tag = `\n<div class="align-center"><img src="${src}" style="width:${document.getElementById('img-width-input').value || "100%"};"></div>\n`;
+                    }
+                    droppedFile = null;
+                }
+                currentTargetArea.value = currentTargetArea.value.substring(0, start) + tag + currentTargetArea.value.substring(currentTargetArea.selectionEnd);
+                pushHistory(currentTargetArea.value); updatePreview(); closeModal('insert-modal');
+                document.getElementById('link-text-input').value = ""; document.getElementById('link-url-input').value = "";
+                document.getElementById('upload-status').classList.add('hidden');
+            };
+
+            const resizer = document.getElementById('resizer');
+            resizer.onmousedown = (e) => {
+                const move = (ev) => { const w = ev.clientX - document.getElementById('left-pane').parentElement.offsetLeft; if (w > 200 && w < window.innerWidth - 200) document.getElementById('left-pane').style.width = w + 'px'; };
+                const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); };
+                document.addEventListener('mousemove', move); document.addEventListener('mouseup', up);
+            };
+        };
+
+
+/* ======================================================
+   🔥 고급 워크플로우 단축키 엔진
+   ====================================================== */
+
+window.onkeydown = function(e) {
+
+    const isFull = document.getElementById('full-edit-modal').style.display === 'block';
+    const ar = isFull ? fullEditArea : markdownInput;
+
+    /* --------------------------
+       🔹 단축키 매칭 함수
+       -------------------------- */
+    const match = (combo) => {
+        if (!combo) return false;
+
+        const parts = combo.toLowerCase().split('+');
+        const key = parts.pop();
+
+        return (
+            e.ctrlKey === parts.includes('ctrl') &&
+            e.altKey === parts.includes('alt') &&
+            e.shiftKey === parts.includes('shift') &&
+            (
+                e.key.toLowerCase() === key ||
+                e.code.toLowerCase() === key.toLowerCase()
+            )
+        );
+    };
+
+    /* =====================================================
+       🔥 행 이동 (Alt + ↑ / ↓)
+       ===================================================== */
+    if (match(hotkeyConfig['move-down'])) {
+        e.preventDefault();
+
+        const lines = ar.value.split('\n');
+        const pos = ar.selectionStart;
+        const idx = ar.value.substring(0, pos).split('\n').length - 1;
+
+        if (idx < lines.length - 1) {
+            [lines[idx], lines[idx+1]] = [lines[idx+1], lines[idx]];
+            ar.value = lines.join('\n');
+            pushHistory(ar.value);
+            updatePreview();
+        }
+        return;
+    }
+
+    if (match(hotkeyConfig['move-up'])) {
+        e.preventDefault();
+
+        const lines = ar.value.split('\n');
+        const pos = ar.selectionStart;
+        const idx = ar.value.substring(0, pos).split('\n').length - 1;
+
+        if (idx > 0) {
+            [lines[idx], lines[idx-1]] = [lines[idx-1], lines[idx]];
+            ar.value = lines.join('\n');
+            pushHistory(ar.value);
+            updatePreview();
+        }
+        return;
+    }
+
+    /* =====================================================
+       🔥 블록 수식 (Alt + M)
+       ===================================================== */
+    if (match(hotkeyConfig['math-block'])) {
+        e.preventDefault();
+        insertTagCustom(ar, "\n$$\n", "\n$$\n");
+        return;
+    }
+
+    /* =====================================================
+       🔥 인라인 수식 (Shift + Alt + M)
+       ===================================================== */
+    if (match(hotkeyConfig['math-inline'])) {
+        e.preventDefault();
+        insertTagCustom(ar, "$", "$");
+        return;
+    }
+
+    /* =====================================================
+       🔥 코드 블록 (Alt + C)
+       ===================================================== */
+    if (match(hotkeyConfig['code'])) {
+        e.preventDefault();
+        insertTagCustom(ar, "\n```\n", "\n```\n");
+        return;
+    }
+
+    /* =====================================================
+       🔥 정렬 (Shift+Alt+L/C/R)
+       ===================================================== */
+    if (match(hotkeyConfig['align-left'])) {
+        e.preventDefault();
+        insertTag('align-left', ar);
+        return;
+    }
+
+    if (match(hotkeyConfig['align-center'])) {
+        e.preventDefault();
+        insertTag('align-center', ar);
+        return;
+    }
+
+    if (match(hotkeyConfig['align-right'])) {
+        e.preventDefault();
+        insertTag('align-right', ar);
+        return;
+    }
+
+    /* =====================================================
+       🔥 제목
+       ===================================================== */
+    if (match(hotkeyConfig['h2'])) { e.preventDefault(); insertTag('h2', ar); return; }
+    if (match(hotkeyConfig['h3'])) { e.preventDefault(); insertTag('h3', ar); return; }
+
+    /* =====================================================
+       🔥 코드 추가 
+       ===================================================== */
+
+if (match(hotkeyConfig['code'])) {
+    e.preventDefault();
+
+    const langSelect = document.getElementById('lang-select');
+    const lang = langSelect ? langSelect.value.trim() : '';
+
+    const start = ar.selectionStart;
+    const end = ar.selectionEnd;
+    const selected = ar.value.substring(start, end);
+
+    let block = '';
+
+    if (lang) {
+        block = `\n\`\`\`${lang}\n${selected || '# code'}\n\`\`\`\n`;
+    } else {
+        block = `\n\`\`\`\n${selected || '# code'}\n\`\`\`\n`;
+    }
+
+    ar.value = ar.value.substring(0, start) + block + ar.value.substring(end);
+
+    pushHistory(ar.value);
+    updatePreview();
+    ar.focus();
+    return;
+}
+
+
+
+    /* =====================================================
+       🔥 기타 편집
+       ===================================================== */
+    if (match(hotkeyConfig['bold'])) { e.preventDefault(); insertTag('bold', ar); return; }
+    if (match(hotkeyConfig['italic'])) { e.preventDefault(); insertTag('italic', ar); return; }
+    if (match(hotkeyConfig['quote'])) { e.preventDefault(); insertTag('quote', ar); return; }
+
+    if (match(hotkeyConfig['pagebreak'])) { e.preventDefault(); insertTag('pagebreak', ar); return; }
+    if (match(hotkeyConfig['br'])) { e.preventDefault(); insertTag('br', ar); return; }
+
+    if (match(hotkeyConfig['undo'])) {
+        e.preventDefault();
+        if (undoStack.length > 1) {
+            undoStack.pop();
+            ar.value = undoStack[undoStack.length - 1];
+            updatePreview();
+        }
+        return;
+    }
+};
+
+
     </script>
 </body>
 </html>
