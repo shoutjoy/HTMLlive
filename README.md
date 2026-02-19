@@ -1,4 +1,4 @@
-# Markdown PDF Editor Pro (V4.1)
+# Markdown PDF Editor Pro (V5.69)
 
 강력한 실시간 A4 미리보기와 정밀한 PDF 내보내기 기능을 갖춘 웹 기반 마크다운 에디터  
 
@@ -61,12 +61,21 @@ A4 고정 레이아웃: 미리보기 창의 폭이 210mm(A4 표준)로 고정되
 
 4. ⌨️ 생산성 단축키 시스템
 
+- Ctrl + Alt + 1 H1
+- Ctrl + Alt + 2 H2
+- Ctrl + Alt + 3 H3
+- **Shift +  Alt + L / C / R**: 왼쪽 / 가운데 / 오른쪽 정렬
+- **Alt + 8 / 9 / 0**: 표 생성 / 행 추가 / 열 추가
 - **Ctrl + B / I**: 굵게 / 기울임
 - **Ctrl + .**: 인용구 (>)
 - **Ctrl + Enter**: 페이지 나누기 지점 삽입
-- **Ctrl + Shift + Enter**: 줄바꿈 삽입 (</br>)
+- **Ctrl + Shift + Enter**: <br> 강제 줄바꿈 삽입
 - **Ctrl + Z**: 실행 취소 (Undo)
-- **Shift + Alt + ↓**: 표 안에서 현재 행 복제
+- **Shift + Alt + ↓**: 현재 행 아래로 복제
+
+
+- 수식 (LaTeX): 인라인 $a^2 + b^2 = c^2$, 블록 수식 지원.
+
 
 5. 🧪 학술 및 기술 문서 지원 (LaTeX & Code)
 
