@@ -445,12 +445,22 @@ PDF, MD, TXT 저장 기능을 모두 지원합니다.`;
             if (undoStack.length > 150) undoStack.shift();
         }
 
-        function preProcess(text) {
-            let pageNum = 1;
-            return text.replace(/<div class="page-break"><\/div>/g, (m) => {
-                return `<div class="page-break-divider" data-page="Page ${++pageNum}"></div><div class="page-break"></div>`;
-            });
-        }
+    function preProcess(text) {
+    let pageNum = 1;
+
+    // 1️⃣ page-break 처리
+    text = text.replace(/<div class="page-break"><\/div>/g, (m) => {
+        return `<div class="page-break-divider" data-page="Page ${++pageNum}"></div><div class="page-break"></div>`;
+    });
+
+    // 2️⃣ 괄호가 포함된 bold 예외 처리
+    // ** ... ( ... ) ... **
+    text = text.replace(/\*\*([^*]*[\(\)][^*]*)\*\*/g, (match, p1) => {
+        return `<b>${p1}</b>`;
+    });
+
+    return text;
+}
 
         function renderMath(element) {
             if (!element || !window.renderMathInElement) return;
@@ -850,3 +860,4 @@ window.onload = autoScale;
     </script>
 </body>
 </html>
+
