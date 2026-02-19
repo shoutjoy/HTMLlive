@@ -530,8 +530,9 @@ body { margin: 0; background: #475569; overflow: auto; }
 #a4-wrapper { width: 100%; display: flex; justify-content: center; padding: 40px 0; }
 .viewer-content {
     background: white; 
-    width: 210mm; /* A4 폭 고정 */
-    min-height: 297mm; 
+    width: 100%;    /* width: 210mm;min-height: 297mm; transform-origin: top center; 에서 수정*/
+    max-width: 1000px;
+    min-height: auto;
     padding: 10mm 15mm; /* 🔥 내부 여백 대폭 축소 (기존 25x30 -> 10x15) */
     box-shadow: 0 20px 60px rgba(0,0,0,0.3); 
     box-sizing: border-box;
@@ -860,4 +861,5 @@ window.onload = autoScale;
     </script>
 </body>
 </html>
+
 
