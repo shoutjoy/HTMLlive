@@ -445,7 +445,7 @@ PDF, MD, TXT 저장 기능을 모두 지원합니다.`;
             if (undoStack.length > 150) undoStack.shift();
         }
 
-    function preProcess(text) {
+function preProcess(text) {
     let pageNum = 1;
 
     // 1️⃣ page-break 처리
@@ -453,9 +453,8 @@ PDF, MD, TXT 저장 기능을 모두 지원합니다.`;
         return `<div class="page-break-divider" data-page="Page ${++pageNum}"></div><div class="page-break"></div>`;
     });
 
-    // 2️⃣ 괄호가 포함된 bold 예외 처리
-    // ** ... ( ... ) ... **
-    text = text.replace(/\*\*([^*]*[\(\)][^*]*)\*\*/g, (match, p1) => {
+    // 2️⃣ 괄호 또는 대괄호 포함 bold 예외 처리
+    text = text.replace(/\*\*([^*]*[\[\]\(\)][^*]*)\*\*/g, (match, p1) => {
         return `<b>${p1}</b>`;
     });
 
@@ -861,5 +860,6 @@ window.onload = autoScale;
     </script>
 </body>
 </html>
+
 
 
